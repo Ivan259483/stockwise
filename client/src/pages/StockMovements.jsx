@@ -24,11 +24,18 @@ const TYPE_OPTIONS = [
   { value: "OUT", label: "Stock out" },
 ];
 
-/** Full, filterable audit log of stock movements plus the "Record movement" action. */
+/**
+ * Stock movements page: the complete audit trail of stock changes (all roles).
+ *
+ * Filters live in the URL, so the product details page can link here with
+ * ?product=<id>. Movements cannot be edited or deleted; a mistake is corrected
+ * with a new "Adjustment" movement, which keeps the history honest.
+ */
 export default function StockMovements() {
   const [filters, setFilters] = useUrlFilters(DEFAULT_FILTERS);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Product names for the filter dropdown (a small store has well under 100 products).
   const { data: productList } = useFetch(() => getProducts({ limit: 100, sort: "name" }).then((body) => body.data));
   const { data, loading, error, refetch } = useFetch(
     () => getMovements({ ...filters, limit: PAGE_SIZE }),
@@ -36,6 +43,7 @@ export default function StockMovements() {
   );
 
   const movements = data?.data ?? [];
+  // Lets the empty state tell "no movements yet" apart from "nothing matches these filters".
   const hasFilters = Boolean(filters.product || filters.type || filters.from || filters.to);
   const productOptions = (productList ?? []).map((p) => ({ value: p._id, label: `${p.name} (${p.sku})` }));
 
@@ -56,6 +64,7 @@ export default function StockMovements() {
       />
 
       <Card>
+        {/* Filter bar: product, type and an inclusive date range */}
         <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] lg:items-end">
           <Select
             label="Product"
@@ -96,6 +105,7 @@ export default function StockMovements() {
           </Button>
         </div>
 
+        {/* Loading, error, empty and list states */}
         {loading && !data ? (
           <TableSkeleton rows={8} />
         ) : error && !data ? (
@@ -137,6 +147,7 @@ export default function StockMovements() {
         )}
       </Card>
 
+      {/* No product passed in, so the modal shows its own product picker */}
       <StockMovementModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

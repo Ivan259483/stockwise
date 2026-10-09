@@ -44,7 +44,6 @@ const FONT = "Arial";
 const BODY_PT = 11;
 const HEADING_PT = 14;
 const LINE = 360; // 1.5 line spacing in Word's 240ths of a line
-const TOC_LINE = 240; // the table of contents is single-spaced so it fits on one page
 /**
  * Word's "1.5 lines" is 1.5 × the font's natural line height, which for Arial
  * is about 1.15 em, so the HTML/PDF uses 1.725 to match the Word document.
@@ -363,14 +362,17 @@ const buildDocx = async () => {
           paragraph: { spacing: { line: LINE, before: 240, after: 80 }, keepNext: true, keepLines: true },
         },
       },
-      paragraphStyles: [1, 2].map((level) => ({
-        id: `TOC${level}`,
-        name: `toc ${level}`,
-        basedOn: "Normal",
-        next: "Normal",
-        run: { font: FONT, size: BODY_PT * 2, bold: level === 1 },
-        paragraph: { spacing: { line: TOC_LINE, before: level === 1 ? 120 : 20 }, indent: { left: (level - 1) * 400 } },
-      })),
+      // The TOC lists only the main (level-1) headings so it fits on page 2 at 1.5 spacing.
+      paragraphStyles: [
+        {
+          id: "TOC1",
+          name: "toc 1",
+          basedOn: "Normal",
+          next: "Normal",
+          run: { font: FONT, size: BODY_PT * 2 },
+          paragraph: { spacing: { line: LINE, before: 0, after: 0 } },
+        },
+      ],
     },
     numbering: {
       config: [
@@ -420,7 +422,7 @@ const buildDocx = async () => {
               new TextRun({ text: "Table of Contents", bold: true, font: FONT, size: HEADING_PT * 2, color: ACCENT }),
             ],
           }),
-          new TableOfContents("Table of Contents", { hyperlink: true, headingStyleRange: "1-2" }),
+          new TableOfContents("Table of Contents", { hyperlink: true, headingStyleRange: "1-1" }),
           new Paragraph({ pageBreakBefore: true, children: [] }),
           ...(await buildDocxBody(numberingRefs)),
         ],
@@ -502,9 +504,12 @@ const htmlBody = async () => {
   return parts.join("\n");
 };
 
-/** Table of contents with dotted leaders; `pages` maps heading text → page number. */
+/**
+ * Table of contents (main headings only, like the Word TOC) with dotted
+ * leaders; `pages` maps heading text → page number.
+ */
 const tocHtml = (pages) =>
-  BLOCKS.filter((b) => b.type === "h1" || b.type === "h2")
+  BLOCKS.filter((b) => b.type === "h1")
     .map(
       (b) => `<div class="toc-${b.type}"><a href="#${headingId(b.text)}">${escapeHtml(b.text)}</a>
         <span class="leader"></span><span class="toc-page">${pages?.[b.text] ?? "00"}</span></div>`
@@ -531,9 +536,7 @@ const buildHtml = async (pages) => `<!doctype html>
   .cover .title { font-size: ${HEADING_PT}pt; font-weight: bold; color: #${ACCENT}; margin-top: 1.1in; }
   .cover p { text-align: center; margin: 0; }
   .toc-title { font-size: ${HEADING_PT}pt; font-weight: bold; color: #${ACCENT}; margin: 0 0 10pt; }
-  .toc-h1, .toc-h2 { display: flex; align-items: baseline; line-height: 1.15; margin-top: 1pt; }
-  .toc-h1 { font-weight: bold; margin-top: 6pt; }
-  .toc-h2 { padding-left: 0.28in; }
+  .toc-h1 { display: flex; align-items: baseline; }
   .leader { flex: 1; border-bottom: 1.5px dotted #64748b; margin: 0 6px; transform: translateY(-3px); }
   figure { margin: 8pt 0 0; text-align: center; break-inside: avoid; }
   figure img { border: 1px solid #cbd5e1; }

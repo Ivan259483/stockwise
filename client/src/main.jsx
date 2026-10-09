@@ -1,3 +1,4 @@
+/** App entry: mounts React with the router, the auth session provider and the toast container around <App />. */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "react-hot-toast";

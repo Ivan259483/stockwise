@@ -44,17 +44,23 @@ function Toggle({ checked, onChange, disabled, label }) {
 }
 
 /**
- * Admin-only user management: change role, activate/deactivate, delete.
- * Controls for your own account are disabled (the API enforces the same rule).
+ * Users page (admin only, guarded by AdminRoute and the API).
+ *
+ * Admins change roles, activate or deactivate accounts, and delete them.
+ * Deactivating is the safer option: the person can no longer sign in, but the
+ * account and its history stay. The controls for your own account are disabled
+ * so an admin can never lock themselves out (the API enforces this too).
  */
 export default function Users() {
   const { user: currentUser } = useAuth();
   const { data: users, loading, error, refetch } = useFetch(() => getUsers().then((body) => body.data));
+  // The row being saved; its controls are disabled until the request finishes.
   const [pendingId, setPendingId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   /** Sends a PATCH and refreshes the list; the row is disabled while saving. */
+  // Role and status changes save immediately (no Save button) and then reload the list.
   const changeUser = async (target, changes, successMessage) => {
     setPendingId(target._id);
     try {
@@ -82,6 +88,7 @@ export default function Users() {
     }
   };
 
+  // Used to disable the controls for the signed-in admin's own row.
   const isSelf = (u) => u._id === currentUser?._id;
 
   const roleSelect = (u) => (
@@ -142,6 +149,7 @@ export default function Users() {
     </div>
   );
 
+  // Desktop table; phones use renderMobileCard below.
   const columns = [
     { key: "name", header: "User", render: nameCell },
     { key: "role", header: "Role", render: roleSelect },
@@ -171,6 +179,7 @@ export default function Users() {
       />
 
       <Card>
+        {/* Loading, error, empty and list states */}
         {loading && !users ? (
           <TableSkeleton />
         ) : error && !users ? (

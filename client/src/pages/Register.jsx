@@ -10,7 +10,14 @@ import { getFieldErrors } from "../utils/errors";
 import { validateRegister } from "../utils/validators";
 import AuthLayout from "../components/layout/AuthLayout";
 
-/** Self-service sign-up. New accounts are always "staff"; an admin can promote them later. */
+/**
+ * Self-service registration.
+ *
+ * New accounts are always "staff": the role is never sent from here and the API
+ * ignores it anyway. An admin can promote the account later on the Users page.
+ * Server field errors (for example "Email already exists") appear under the
+ * matching input.
+ */
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -22,6 +29,7 @@ export default function Register() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // confirmPassword is checked only on the client; it is never sent to the API.
   const handleSubmit = async (event) => {
     event.preventDefault();
     const validationErrors = validateRegister(values);

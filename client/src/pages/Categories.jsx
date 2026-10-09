@@ -15,7 +15,13 @@ import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
 
-/** Category list for everyone; create/edit/delete for admins. */
+/**
+ * Categories page: the list is visible to everyone, create/edit/delete to admins.
+ *
+ * Each row shows how many products use the category. The API refuses (409) to
+ * delete a category that is still in use, and the confirm dialog warns about
+ * that in advance.
+ */
 export default function Categories() {
   const { isAdmin } = useAuth();
   const { data: categories, loading, error, refetch } = useFetch(() => getCategories().then((body) => body.data));
@@ -24,6 +30,7 @@ export default function Categories() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // On a 409 the interceptor already shows the reason, so just close the dialog.
   const confirmDelete = async () => {
     setDeleting(true);
     try {
@@ -39,6 +46,7 @@ export default function Categories() {
     }
   };
 
+  // The product count links to the product list filtered by this category.
   const productsLink = (category) => (
     <Link to={`/products?category=${category._id}`} className="hover:underline">
       <Badge tone={category.productCount ? "primary" : "neutral"}>
@@ -47,6 +55,7 @@ export default function Categories() {
     </Link>
   );
 
+  // Admins only: staff see the list without edit or delete buttons.
   const rowActions = (category) =>
     isAdmin && (
       <div className="flex justify-end gap-1">
@@ -68,6 +77,7 @@ export default function Categories() {
       </div>
     );
 
+  // Desktop table; phones use renderMobileCard below.
   const columns = [
     { key: "name", header: "Name", render: (c) => <span className="font-medium text-slate-900">{c.name}</span> },
     {
@@ -105,6 +115,7 @@ export default function Categories() {
       />
 
       <Card>
+        {/* Loading, error, empty and list states */}
         {loading && !categories ? (
           <TableSkeleton />
         ) : error && !categories ? (
@@ -127,6 +138,7 @@ export default function Categories() {
         )}
       </Card>
 
+      {/* One modal handles both create (editing === null) and edit */}
       <CategoryFormModal
         open={editing !== undefined}
         category={editing}

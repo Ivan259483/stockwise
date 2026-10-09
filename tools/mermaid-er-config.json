@@ -1,0 +1,5 @@
+{
+  "theme": "neutral",
+  "themeVariables": { "fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "18px" },
+  "er": { "fontSize": 18, "useMaxWidth": false, "entityPadding": 12, "minEntityWidth": 120 }
+}

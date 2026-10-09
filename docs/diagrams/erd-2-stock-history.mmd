@@ -1,0 +1,31 @@
+erDiagram
+    direction LR
+    USER ||--o{ STOCK_MOVEMENT : "performs"
+    PRODUCT ||--o{ STOCK_MOVEMENT : "has history"
+
+    USER {
+        ObjectId _id PK
+        String name
+        String email UK
+        String password
+        String role
+        Boolean isActive
+    }
+    PRODUCT {
+        ObjectId _id PK
+        String sku UK
+        String name
+    }
+    STOCK_MOVEMENT {
+        ObjectId _id PK
+        ObjectId product FK
+        String productName
+        String sku
+        String type
+        Number quantity
+        Number previousQty
+        Number newQty
+        String reason
+        String note
+        ObjectId performedBy FK
+    }

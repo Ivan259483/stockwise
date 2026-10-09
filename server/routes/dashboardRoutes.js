@@ -1,3 +1,4 @@
+/** Dashboard route: one summary endpoint for any logged-in user (staff need the overview too). */
 import { Router } from "express";
 import { getSummary } from "../controllers/dashboardController.js";
 import { protect } from "../middleware/auth.js";

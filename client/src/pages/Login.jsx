@@ -15,7 +15,14 @@ const DEMO_ACCOUNTS = [
   { role: "Staff", email: "staff@stockwise.com", password: "Staff123!" },
 ];
 
-/** Sign-in page. After login the user returns to the page they originally requested. */
+/**
+ * Sign-in page.
+ *
+ * Validates on the client first, then calls the API through AuthContext, which
+ * stores the JWT. After login the user is sent back to the page they originally
+ * asked for (ProtectedRoute saves it in the location state). A wrong password is
+ * reported by the API with one generic message so emails can't be probed.
+ */
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +30,7 @@ export default function Login() {
   const { values, errors, setErrors, setValues, handleChange } = useForm({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
 
+  // Only reset `submitting` on failure; on success the page navigates away.
   const handleSubmit = async (event) => {
     event.preventDefault();
     const validationErrors = validateLogin(values);
@@ -81,6 +89,7 @@ export default function Login() {
         </Button>
       </form>
 
+      {/* Demo-account shortcuts fill the form; the user still presses Sign in */}
       <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
         <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Demo accounts</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">

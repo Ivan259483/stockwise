@@ -26,12 +26,17 @@ const PAGE_SIZE = 10;
 const DEFAULT_FILTERS = { search: "", category: "", status: "", sort: "name", page: "1" };
 
 /**
- * Product catalogue with debounced search, filters, sorting and pagination.
- * Filters live in the URL, so the dashboard can link to e.g. ?status=low_stock.
+ * Product catalog page (all roles; add, edit and delete for admins only).
+ *
+ * Filters, sort and page live in the URL query string, so a refresh keeps them
+ * and the dashboard can link straight to e.g. ?status=low_stock. The search box
+ * is debounced (300 ms) so the API is queried once the user pauses typing,
+ * not on every keystroke.
  */
 export default function Products() {
   const { isAdmin } = useAuth();
   const [filters, setFilters] = useUrlFilters(DEFAULT_FILTERS);
+  // The input keeps its own text; only the debounced value is written to the URL.
   const [searchText, setSearchText] = useState(filters.search);
   const debouncedSearch = useDebounce(searchText.trim(), 300);
   const [toDelete, setToDelete] = useState(null);
@@ -42,6 +47,7 @@ export default function Products() {
     if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch });
   }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Categories fill the filter dropdown; products reload whenever a filter in the URL changes.
   const { data: categories } = useFetch(() => getCategories().then((body) => body.data));
   const { data, loading, error, refetch } = useFetch(
     () => getProducts({ ...filters, limit: PAGE_SIZE }),
@@ -72,6 +78,7 @@ export default function Products() {
     }
   };
 
+  // Row actions are shared by the desktop table and the mobile cards so both stay in sync.
   const actions = (product) => (
     <div className="flex items-center justify-end gap-1">
       <Button
@@ -103,6 +110,7 @@ export default function Products() {
     </div>
   );
 
+  // Desktop table; "Stock value" is hidden below the lg breakpoint to keep the row readable.
   const columns = [
     {
       key: "name",
@@ -139,6 +147,7 @@ export default function Products() {
     { key: "actions", header: "Actions", align: "right", render: actions },
   ];
 
+  // Phones get one card per product instead of a wide table.
   const renderMobileCard = (p) => (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
@@ -179,6 +188,7 @@ export default function Products() {
       />
 
       <Card>
+        {/* Filter bar: search, category, stock status and sort */}
         <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
           <Input
             aria-label="Search products"
@@ -211,6 +221,7 @@ export default function Products() {
           />
         </div>
 
+        {/* States in order: first load, failed load, nothing found (with or without filters), results */}
         {loading && !data ? (
           <TableSkeleton rows={PAGE_SIZE} />
         ) : error && !data ? (
@@ -257,6 +268,7 @@ export default function Products() {
         )}
       </Card>
 
+      {/* Deleting cannot be undone, so it always asks first */}
       <ConfirmDialog
         open={Boolean(toDelete)}
         title="Delete product?"

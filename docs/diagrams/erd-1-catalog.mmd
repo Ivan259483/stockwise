@@ -1,0 +1,32 @@
+erDiagram
+    direction LR
+    CATEGORY ||--o{ PRODUCT : "groups"
+    SUPPLIER |o--o{ PRODUCT : "supplies"
+
+    CATEGORY {
+        ObjectId _id PK
+        String name UK
+        String description
+    }
+    SUPPLIER {
+        ObjectId _id PK
+        String name
+        String contactPerson
+        String phone
+        String email
+        String address
+    }
+    PRODUCT {
+        ObjectId _id PK
+        String name
+        String sku UK
+        ObjectId category FK
+        ObjectId supplier FK
+        String description
+        String unit
+        Number costPrice
+        Number sellingPrice
+        Number quantity
+        Number reorderLevel
+        String image
+    }

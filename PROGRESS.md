@@ -17,5 +17,6 @@
 - **Product quantity** can be set when a product is created (recorded as an "Opening stock" IN movement) but is not editable afterwards. All later changes go through Stock In/Out so every change is audited.
 - **Stock reasons** are limited per direction: IN = Purchase, Return, Adjustment, Other; OUT = Sale, Damaged, Expired, Adjustment, Other.
 - **Rate limiting** counts only failed login/register attempts (20 per 15 minutes per IP).
-- **TOC spacing:** the table of contents is single-spaced so it fits on page 2; all other text uses 1.5 spacing.
+- **TOC:** lists the nine main headings at 1.5 spacing (like all other text) so it fits on page 2. "Live Deliverables" starts a new page so Word and Chrome paginate page 3 identically.
+- **ERD:** split into two diagrams (product catalog, stock history) so the labels print at about 11 pt; field constraints are in Tables 2–6.
 - **PDF line height:** the HTML used for the PDF sets `line-height: 1.725`, because Word's "1.5 lines" for Arial equals 1.5 × 1.15 em. The two files paginate identically (all 34 TOC entries land on the same pages).

@@ -37,12 +37,14 @@ export const BODY = [
   { type: "h2", text: "Proposed Solution" },
   {
     type: "p",
-    text: "**StockWise** is a web-based inventory management system built on the MERN stack (MongoDB, Express, React and Node.js). It replaces the logbook with a single, searchable product catalogue and records every stock change as a *stock movement* that stores who made the change, when, why, and the quantity before and after it. A dashboard summarizes the total stock value in Philippine pesos, highlights products that are low or out of stock, and charts stock movements over the last seven days.",
+    text: "**StockWise** is a web-based inventory management system built on the MERN stack (MongoDB, Express, React and Node.js). It replaces the logbook with a single, searchable product catalog and records every stock change as a *stock movement* that stores who made the change, when, why, and the quantity before and after it. A dashboard summarizes the total stock value in Philippine pesos, highlights products that are low or out of stock, and charts stock movements over the last seven days.",
   },
   {
     type: "p",
-    text: "The system has two roles. An **admin** (typically the store owner) manages products, categories, suppliers and user accounts. A **staff** member can view all inventory data and record stock in and stock out, but cannot change the catalogue. StockWise runs in any modern browser on a desktop computer or a mobile phone and is deployed publicly on Vercel with a MongoDB Atlas database.",
+    text: "The system has two roles. An **admin** (typically the store owner) manages products, categories, suppliers and user accounts. A **staff** member can view all inventory data and record stock in and stock out, but cannot change the catalog. StockWise runs in any modern browser on a desktop computer or a mobile phone and is deployed publicly on Vercel with a MongoDB Atlas database.",
   },
+  // Starts a new page so Word and Chrome break page 3 identically (keeps TOC numbers in sync).
+  { type: "pageBreak" },
   { type: "h2", text: "Live Deliverables" },
   {
     type: "table",
@@ -69,7 +71,7 @@ export const BODY = [
     items: [
       "**Secure access:** require a valid JSON Web Token (JWT) for every endpoint except health, login and registration, and enforce two roles (admin and staff) on both the server and the user interface.",
       "**Complete data management:** provide create, read, update and delete (CRUD) operations for products, categories and suppliers, and user management for administrators, all through a RESTful API.",
-      "**Full audit trail:** record 100 percent of stock quantity changes after a product is created as stock movements that include the previous quantity, the new quantity, the reason and the user who made the change.",
+      "**Full audit trail:** record every change to a product's stock quantity as a stock movement that stores the previous quantity, the new quantity, the reason and the user who made the change.",
       "**No negative stock:** reject every stock-out request that exceeds the available quantity with HTTP status 409, using an atomic database update so that simultaneous requests cannot push stock below zero.",
       '**Low-stock alerts:** mark a product as "Low stock" when its quantity is at or below its reorder level and as "Out of stock" at zero, and list the five most urgent products on the dashboard.',
       "**Reliable input:** validate every write request on the server with express-validator and every form on the client before submission, and return errors in one consistent format.",
@@ -170,9 +172,20 @@ export const BODY = [
   { type: "h1", text: "Database Design" },
   {
     type: "p",
-    text: "Figure 2 shows the five collections and their relationships. Products reference their category and, optionally, their supplier. Stock movements reference the product and the user who recorded them, and they also store a copy of the product name and SKU so that the history remains readable after a product is renamed or deleted. All collections include automatic createdAt and updatedAt timestamps, which are omitted from the diagram for clarity.",
+    text: "Figures 2 and 3 show the five collections and their relationships. Figure 2 covers the product catalog: products reference their category and, optionally, their supplier. Figure 3 covers the stock history: stock movements reference the product and the user who recorded them, and they also store a copy of the product name and SKU so that the history remains readable after a product is renamed or deleted (Figure 3 repeats only the key fields of products). The constraints of every field are listed in Tables 2 to 6. All collections include automatic createdAt and updatedAt timestamps, which are omitted from the diagrams for clarity.",
   },
-  { type: "figure", src: "../docs/diagrams/erd.png", width: 6.5, caption: "Entity relationship diagram (ERD)" },
+  {
+    type: "figure",
+    src: "../docs/diagrams/erd-1-catalog.png",
+    width: 6.0,
+    caption: "Entity relationship diagram, part 1: product catalog",
+  },
+  {
+    type: "figure",
+    src: "../docs/diagrams/erd-2-stock-history.png",
+    width: 6.0,
+    caption: "Entity relationship diagram, part 2: stock history",
+  },
   {
     type: "bullets",
     items: [

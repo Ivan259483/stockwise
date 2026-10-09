@@ -16,10 +16,10 @@ Final project for **Integrative Programming and Technologies** (Section INF238) 
 
 Many small Philippine stores still track stock in paper logbooks or spreadsheets. This leads to stockouts, overstocking, lost items and no record of who changed what. StockWise replaces the logbook with a simple web app:
 
-- every product, its price and its stock level in one searchable catalogue;
+- every product, its price and its stock level in one searchable catalog;
 - every stock change recorded as a **stock movement** with who, when, why, and the before/after quantity;
 - a dashboard that shows stock value in pesos and highlights what needs restocking;
-- two roles, **admin** and **staff**, so only the owner can change the catalogue.
+- two roles, **admin** and **staff**, so only the owner can change the catalog.
 
 ## Features
 
@@ -170,7 +170,7 @@ cd tools && npm install && node e2e.mjs       # 30 headless-Chrome steps
 | [`docs/StockWise_Technical_Documentation.docx`](docs/StockWise_Technical_Documentation.docx) | Technical documentation (Word) |
 | [`docs/StockWise_Technical_Documentation.pdf`](docs/StockWise_Technical_Documentation.pdf) | Same document as PDF |
 | [`docs/screenshots/`](docs/screenshots) | Screenshots of the live site at 1440 px and 390 px |
-| [`docs/diagrams/`](docs/diagrams) | System architecture and ERD (Mermaid sources + PNG) |
+| [`docs/diagrams/`](docs/diagrams) | System architecture and a two-part ERD: product catalog and stock history (Mermaid sources + PNG) |
 | [`docs/Presentation_Script.md`](docs/Presentation_Script.md) | 5-minute presentation outline and demo script |
 
 The documents are generated from `tools/docs/content.mjs`: `cd tools && npm install && npm run screenshots && npm run diagrams && npm run docs`.

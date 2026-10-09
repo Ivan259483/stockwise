@@ -14,7 +14,13 @@ import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
 
-/** Supplier directory for everyone; create/edit/delete for admins. */
+/**
+ * Suppliers page: the directory is visible to everyone, create/edit/delete to admins.
+ *
+ * Unlike categories, a supplier is optional on a product, so deleting one is
+ * allowed: the API removes it from its products, and the success message says
+ * how many products were affected.
+ */
 export default function Suppliers() {
   const { isAdmin } = useAuth();
   const { data: suppliers, loading, error, refetch } = useFetch(() => getSuppliers().then((body) => body.data));
@@ -23,6 +29,7 @@ export default function Suppliers() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Report how many products lost their supplier so the admin knows what changed.
   const confirmDelete = async () => {
     setDeleting(true);
     try {
@@ -40,6 +47,7 @@ export default function Suppliers() {
     }
   };
 
+  // Phone and email are links, so a tap on a phone starts a call or an email.
   const contact = (s) => (
     <div className="space-y-0.5 text-sm">
       {s.phone && (
@@ -61,6 +69,7 @@ export default function Suppliers() {
     </div>
   );
 
+  // Admins only: staff see the directory without edit or delete buttons.
   const rowActions = (s) =>
     isAdmin && (
       <div className="flex justify-end gap-1">
@@ -76,6 +85,7 @@ export default function Suppliers() {
       </div>
     );
 
+  // Desktop table; the address column is hidden below the lg breakpoint.
   const columns = [
     {
       key: "name",
@@ -127,6 +137,7 @@ export default function Suppliers() {
       />
 
       <Card>
+        {/* Loading, error, empty and list states */}
         {loading && !suppliers ? (
           <TableSkeleton />
         ) : error && !suppliers ? (
@@ -149,6 +160,7 @@ export default function Suppliers() {
         )}
       </Card>
 
+      {/* One modal handles both create (editing === null) and edit */}
       <SupplierFormModal
         open={editing !== undefined}
         supplier={editing}

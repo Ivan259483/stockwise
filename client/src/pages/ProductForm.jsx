@@ -61,12 +61,18 @@ const readAsDataUrl = (file) =>
 
 /**
  * Create (/products/new) or edit (/products/:id/edit) a product. Admin only.
- * Quantity can be set only when creating; afterwards it changes through stock movements.
+ *
+ * One component handles both modes so the fields and validation can never
+ * drift apart. Quantity is entered only when creating (it becomes the opening
+ * stock movement); afterwards it changes only through Stock In / Stock Out so
+ * every change is audited. Images are sent as data URLs, so the 1 MB limit is
+ * checked here before the file is read.
  */
 export default function ProductForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  // The real file input is visually hidden; the "Upload image" button clicks it.
   const fileInputRef = useRef(null);
   const { values, errors, setErrors, setField, handleChange, reset } = useForm(EMPTY_PRODUCT);
   const [saving, setSaving] = useState(false);
@@ -84,10 +90,12 @@ export default function ProductForm() {
     [id]
   );
 
+  // Fill the form once the product (edit mode) or the blank defaults (create mode) are ready.
   useEffect(() => {
     reset(data?.product ? toFormValues(data.product) : EMPTY_PRODUCT);
   }, [data, reset]);
 
+  // Validate type and size before reading the file, so a huge photo never freezes the page.
   const handleImageChange = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = ""; // allow choosing the same file again after removing it
@@ -105,6 +113,7 @@ export default function ProductForm() {
     }
   };
 
+  // Client-side validation first (instant feedback), then the API; server field errors (e.g. duplicate SKU) are shown inline.
   const handleSubmit = async (event) => {
     event.preventDefault();
     const validationErrors = validateProduct(values, { isEdit });
@@ -161,6 +170,7 @@ export default function ProductForm() {
     );
   }
 
+  // Dropdown options come from the API so new categories and suppliers appear immediately.
   const categoryOptions = data.categories.map((c) => ({ value: c._id, label: c.name }));
   const supplierOptions = data.suppliers.map((s) => ({ value: s._id, label: s.name }));
 
@@ -171,6 +181,7 @@ export default function ProductForm() {
       </PageHeader>
 
       <form onSubmit={handleSubmit} noValidate className="grid gap-6 lg:grid-cols-3">
+        {/* Left column: details, then pricing and stock */}
         <div className="space-y-6 lg:col-span-2">
           <Card title="Product details" bodyClassName="grid gap-4 p-5 sm:grid-cols-2">
             <Input
@@ -302,6 +313,7 @@ export default function ProductForm() {
           </Card>
         </div>
 
+        {/* Right column: optional image and the submit buttons */}
         <div className="space-y-6">
           <Card title="Image" description="Optional. PNG, JPG, GIF or WebP up to 1 MB." bodyClassName="p-5">
             <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50">

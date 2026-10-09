@@ -9,7 +9,7 @@
   "scripts": {
     "e2e": "node e2e.mjs",
     "screenshots": "node screenshots.mjs",
-    "diagrams": "for d in architecture erd; do mmdc -i ../docs/diagrams/$d.mmd -o ../docs/diagrams/$d.png -c mermaid-config.json -p puppeteer-config.json -b white -s 2 -q; done",
+    "diagrams": "mmdc -i ../docs/diagrams/architecture.mmd -o ../docs/diagrams/architecture.png -c mermaid-config.json -p puppeteer-config.json -b white -s 2 -q && for d in erd-1-catalog erd-2-stock-history; do mmdc -i ../docs/diagrams/$d.mmd -o ../docs/diagrams/$d.png -c mermaid-er-config.json -p puppeteer-config.json -b white -s 2 -q; done",
     "docs": "node build-docs.mjs"
   },
   "devDependencies": {

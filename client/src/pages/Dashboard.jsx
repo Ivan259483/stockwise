@@ -17,12 +17,21 @@ import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
 import { formatDateTime, formatNumber, formatWholeCurrency } from "../utils/formatters";
 
-/** Home page: stock KPIs, charts, items to restock and the latest movements. */
+/**
+ * Dashboard (home page) for both roles.
+ *
+ * Everything on it comes from a single request (GET /api/dashboard/summary), so
+ * the page loads quickly even on slow mobile data. "Restock" reuses the shared
+ * StockMovementModal and then refetches, so the cards and charts never show
+ * stale numbers after a change.
+ */
 export default function Dashboard() {
   const { user } = useAuth();
   const { data, loading, error, refetch } = useFetch(() => getDashboardSummary().then((body) => body.data));
+  // The low-stock item being restocked; null keeps the modal closed.
   const [restockProduct, setRestockProduct] = useState(null);
 
+  // Shared by every state below so the title doesn't jump while data loads.
   const header = (
     <PageHeader
       title={`Hello, ${user?.name?.split(" ")[0] ?? "there"}`}
@@ -35,6 +44,7 @@ export default function Dashboard() {
     />
   );
 
+  // Full-page loading/error states only before the first load; refetches keep the old data visible.
   if (loading && !data)
     return (
       <>
@@ -52,12 +62,14 @@ export default function Dashboard() {
       </>
     );
 
+  // A store with no products yet gets an empty state instead of a blank chart.
   const hasProducts = data.totalProducts > 0;
 
   return (
     <>
       {header}
 
+      {/* KPI cards: the low/out-of-stock cards link straight to the matching product filter */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total products"
@@ -91,6 +103,7 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Charts: where the money is (value by category) and how stock moved this week */}
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card title="Stock value by category" description="Value of stock on hand at cost" bodyClassName="p-4">
           {hasProducts ? (
@@ -104,6 +117,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Action lists: what to reorder next, and the latest audit entries */}
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card
           title="Needs restocking"
@@ -187,6 +201,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Restock = the shared movement form with the product fixed and type IN */}
       <StockMovementModal
         open={Boolean(restockProduct)}
         product={restockProduct}

@@ -27,12 +27,19 @@ function Detail({ label, children }) {
   );
 }
 
-/** One product: info, current stock, stock in/out actions and recent history. */
+/**
+ * Product details page (all roles).
+ *
+ * Shows the product, its current stock and its last 20 movements. Stock In and
+ * Stock Out are available to staff as well, because recording movements is
+ * their main job; Edit and Delete are admin-only (the API enforces the same).
+ */
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { data, loading, error, refetch } = useFetch(() => getProduct(id).then((body) => body.data), [id]);
+  // Which movement form is open ("IN" / "OUT"); null means closed.
   const [movementType, setMovementType] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,6 +53,7 @@ export default function ProductDetails() {
     </Link>
   );
 
+  // A bad or deleted id gets a friendly "not found" instead of a generic error.
   if (loading && !data) return <PageLoader label="Loading product…" />;
   if (error && !data) {
     const notFound = error.response?.status === 404 || error.response?.status === 400;
@@ -70,6 +78,7 @@ export default function ProductDetails() {
 
   const { product, movements } = data;
 
+  // After deleting there is nothing left to show here, so go back to the list.
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -115,6 +124,7 @@ export default function ProductDetails() {
         {backLink}
       </PageHeader>
 
+      {/* Product information and current stock side by side on large screens */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2" title="Product information" bodyClassName="p-5">
           <div className="flex flex-col gap-5 sm:flex-row">
@@ -171,6 +181,7 @@ export default function ProductDetails() {
         </Card>
       </div>
 
+      {/* Audit trail for this product; the full, filterable history is on the movements page */}
       <Card
         className="mt-6"
         title="Movement history"
@@ -195,6 +206,7 @@ export default function ProductDetails() {
         )}
       </Card>
 
+      {/* Refetch after a movement so the quantity, status and history update together */}
       <StockMovementModal
         open={Boolean(movementType)}
         product={product}

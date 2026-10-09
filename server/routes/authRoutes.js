@@ -1,3 +1,4 @@
+/** Auth routes: register and login are public but rate-limited; /me requires a valid token. */
 import { Router } from "express";
 import { getMe, login, register } from "../controllers/authController.js";
 import { protect } from "../middleware/auth.js";
