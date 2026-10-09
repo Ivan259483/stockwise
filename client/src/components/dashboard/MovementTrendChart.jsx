@@ -27,10 +27,26 @@ export default function MovementTrendChart({ data }) {
             axisLine={false}
             width={40}
           />
-          <Tooltip content={<ChartTooltip formatLabel={formatShortDay} formatValue={(v) => `${formatNumber(v)} units`} />} />
+          <Tooltip
+            content={<ChartTooltip formatLabel={formatShortDay} formatValue={(v) => `${formatNumber(v)} units`} />}
+          />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-          <Line type="monotone" dataKey="in" name="Stock in" stroke={CHART_COLORS.stockIn} strokeWidth={2.5} dot={{ r: 3 }} />
-          <Line type="monotone" dataKey="out" name="Stock out" stroke={CHART_COLORS.stockOut} strokeWidth={2.5} dot={{ r: 3 }} />
+          <Line
+            type="monotone"
+            dataKey="in"
+            name="Stock in"
+            stroke={CHART_COLORS.stockIn}
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="out"
+            name="Stock out"
+            stroke={CHART_COLORS.stockOut}
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

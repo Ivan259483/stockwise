@@ -74,15 +74,13 @@ export default function ProductForm() {
   // Load dropdown options and (when editing) the product, in parallel.
   const { data, loading, error, refetch } = useFetch(
     () =>
-      Promise.all([
-        getCategories(),
-        getSuppliers(),
-        isEdit ? getProduct(id) : Promise.resolve(null),
-      ]).then(([categories, suppliers, product]) => ({
-        categories: categories.data,
-        suppliers: suppliers.data,
-        product: product?.data.product ?? null,
-      })),
+      Promise.all([getCategories(), getSuppliers(), isEdit ? getProduct(id) : Promise.resolve(null)]).then(
+        ([categories, suppliers, product]) => ({
+          categories: categories.data,
+          suppliers: suppliers.data,
+          product: product?.data.product ?? null,
+        })
+      ),
     [id]
   );
 
@@ -181,7 +179,7 @@ export default function ProductForm() {
               value={values.name}
               onChange={handleChange}
               error={errors.name}
-              placeholder='e.g. Claw Hammer 16 oz'
+              placeholder="e.g. Claw Hammer 16 oz"
               className="sm:col-span-2"
               maxLength={100}
               required
@@ -213,7 +211,9 @@ export default function ProductForm() {
               error={errors.category}
               options={categoryOptions}
               placeholder="Choose a category…"
-              hint={categoryOptions.length === 0 ? "No categories yet. Add one on the Categories page first." : undefined}
+              hint={
+                categoryOptions.length === 0 ? "No categories yet. Add one on the Categories page first." : undefined
+              }
               required
             />
             <Select
@@ -326,7 +326,12 @@ export default function ProductForm() {
               </p>
             )}
             <div className="mt-3 flex gap-2">
-              <Button variant="secondary" icon={ImagePlus} className="flex-1" onClick={() => fileInputRef.current?.click()}>
+              <Button
+                variant="secondary"
+                icon={ImagePlus}
+                className="flex-1"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 {values.image ? "Change image" : "Upload image"}
               </Button>
               {values.image && (

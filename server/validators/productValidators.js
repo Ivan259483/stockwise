@@ -25,7 +25,10 @@ const productBodyRules = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description must be at most 500 characters"),
-  body("unit").optional().isIn(UNITS).withMessage(`Unit must be one of: ${UNITS.join(", ")}`),
+  body("unit")
+    .optional()
+    .isIn(UNITS)
+    .withMessage(`Unit must be one of: ${UNITS.join(", ")}`),
   body("costPrice")
     .optional()
     .isFloat({ min: 0, max: 10_000_000 })

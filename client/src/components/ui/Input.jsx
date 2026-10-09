@@ -1,5 +1,6 @@
 import { useId } from "react";
-import FormField, { controlClasses, describedBy } from "./FormField";
+import FormField from "./FormField";
+import { controlClasses, describedBy } from "./formControl";
 
 /**
  * Labelled text input with inline error/hint.
@@ -13,7 +14,10 @@ export default function Input({ label, error, hint, icon: Icon, className = "", 
     <FormField id={inputId} label={label} error={error} hint={hint} required={required} className={className}>
       <div className="relative">
         {Icon && (
-          <Icon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <Icon
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
+            aria-hidden="true"
+          />
         )}
         <input
           id={inputId}

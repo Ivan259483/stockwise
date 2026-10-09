@@ -36,7 +36,9 @@ function Toggle({ checked, onChange, disabled, label }) {
         checked ? "bg-emerald-500" : "bg-slate-300"
       }`}
     >
-      <span className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5.5" : "translate-x-0.5"}`} />
+      <span
+        className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5.5" : "translate-x-0.5"}`}
+      />
     </button>
   );
 }
@@ -88,7 +90,11 @@ export default function Users() {
       value={u.role}
       disabled={isSelf(u) || pendingId === u._id}
       onChange={(event) =>
-        changeUser(u, { role: event.target.value }, `${u.name} is now ${event.target.value === "admin" ? "an admin" : "staff"}`)
+        changeUser(
+          u,
+          { role: event.target.value },
+          `${u.name} is now ${event.target.value === "admin" ? "an admin" : "staff"}`
+        )
       }
       className="rounded-lg border-0 bg-white py-1.5 pr-8 pl-3 text-sm shadow-sm ring-1 ring-slate-300 ring-inset focus:ring-2 focus:ring-primary-600 disabled:bg-slate-50 disabled:text-slate-500"
     >
@@ -106,11 +112,11 @@ export default function Users() {
         checked={u.isActive}
         disabled={isSelf(u) || pendingId === u._id}
         label={`${u.isActive ? "Deactivate" : "Activate"} ${u.name}`}
-        onChange={(isActive) =>
-          changeUser(u, { isActive }, `${u.name} was ${isActive ? "activated" : "deactivated"}`)
-        }
+        onChange={(isActive) => changeUser(u, { isActive }, `${u.name} was ${isActive ? "activated" : "deactivated"}`)}
       />
-      <span className={`text-sm ${u.isActive ? "text-emerald-700" : "text-slate-500"}`}>{u.isActive ? "Active" : "Inactive"}</span>
+      <span className={`text-sm ${u.isActive ? "text-emerald-700" : "text-slate-500"}`}>
+        {u.isActive ? "Active" : "Inactive"}
+      </span>
     </div>
   );
 
@@ -181,8 +187,9 @@ export default function Users() {
         title="Delete user?"
         message={
           <>
-            <strong className="text-slate-900">{toDelete?.name}</strong> ({toDelete?.email}) will lose access permanently.
-            Their past stock movements stay in the history. To block access temporarily, deactivate the account instead.
+            <strong className="text-slate-900">{toDelete?.name}</strong> ({toDelete?.email}) will lose access
+            permanently. Their past stock movements stay in the history. To block access temporarily, deactivate the
+            account instead.
           </>
         }
         loading={deleting}

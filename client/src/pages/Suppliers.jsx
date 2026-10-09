@@ -43,7 +43,10 @@ export default function Suppliers() {
   const contact = (s) => (
     <div className="space-y-0.5 text-sm">
       {s.phone && (
-        <a href={`tel:${s.phone.replace(/\s/g, "")}`} className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600">
+        <a
+          href={`tel:${s.phone.replace(/\s/g, "")}`}
+          className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600"
+        >
           <Phone className="size-3.5 shrink-0" aria-hidden="true" />
           {s.phone}
         </a>
@@ -162,7 +165,8 @@ export default function Suppliers() {
         message={
           <>
             <strong className="text-slate-900">{toDelete?.name}</strong> will be permanently deleted.
-            {toDelete?.productCount > 0 && ` Its ${toDelete.productCount} product(s) will be kept but will no longer have a supplier.`}
+            {toDelete?.productCount > 0 &&
+              ` Its ${toDelete.productCount} product(s) will be kept but will no longer have a supplier.`}
           </>
         }
         loading={deleting}

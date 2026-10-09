@@ -17,9 +17,7 @@ const validate = (rules) => async (req, _res, next) => {
   const result = validationResult(req);
   if (result.isEmpty()) return next();
 
-  const errors = result
-    .array({ onlyFirstError: true })
-    .map((error) => ({ field: error.path, message: error.msg }));
+  const errors = result.array({ onlyFirstError: true }).map((error) => ({ field: error.path, message: error.msg }));
 
   next(ApiError.badRequest(errors[0]?.message ?? "Validation failed", errors));
 };

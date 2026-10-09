@@ -18,8 +18,6 @@ export const OUT_REASONS = Object.freeze(["Sale", "Damaged", "Expired", "Adjustm
 /** Every reason accepted by the StockMovement model. */
 export const MOVEMENT_REASONS = Object.freeze([...new Set([...IN_REASONS, ...OUT_REASONS])]);
 
-export const STOCK_STATUSES = Object.freeze(["in_stock", "low_stock", "out_of_stock"]);
-
 /** Max size of an uploaded product image (the decoded file, not the base64 text). */
 export const MAX_IMAGE_BYTES = 1024 * 1024;
 

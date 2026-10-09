@@ -88,8 +88,11 @@ const run = async () => {
     400,
     (b) => b.success === false && b.errors.some((e) => e.field === "email")
   );
-  check("GET /auth/me with token", await request("GET", "/auth/me", { token: adminToken }), 200, (b) =>
-    b.data.email === ADMIN.email
+  check(
+    "GET /auth/me with token",
+    await request("GET", "/auth/me", { token: adminToken }),
+    200,
+    (b) => b.data.email === ADMIN.email
   );
   check("No token → 401", await request("GET", "/products"), 401, (b) => b.success === false);
   check("Malformed token → 401", await request("GET", "/products", { token: "not.a.jwt" }), 401);
@@ -257,8 +260,11 @@ const run = async () => {
   );
 
   // --- Error handling and authorization ------------------------------------
-  check("Invalid ID → 400", await request("GET", "/products/not-a-valid-id", { token: adminToken }), 400, (b) =>
-    b.message === "Invalid ID"
+  check(
+    "Invalid ID → 400",
+    await request("GET", "/products/not-a-valid-id", { token: adminToken }),
+    400,
+    (b) => b.message === "Invalid ID"
   );
   check(
     "Unknown product ID → 404",

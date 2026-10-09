@@ -1,10 +1,5 @@
 import { Router } from "express";
-import {
-  createCategory,
-  deleteCategory,
-  getCategories,
-  updateCategory,
-} from "../controllers/categoryController.js";
+import { createCategory, deleteCategory, getCategories, updateCategory } from "../controllers/categoryController.js";
 import { authorize, protect } from "../middleware/auth.js";
 import validate from "../middleware/validate.js";
 import { createCategoryRules, updateCategoryRules } from "../validators/categoryValidators.js";

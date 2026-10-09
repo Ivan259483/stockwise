@@ -38,7 +38,10 @@ export default function ProductDetails() {
   const [deleting, setDeleting] = useState(false);
 
   const backLink = (
-    <Link to="/products" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700">
+    <Link
+      to="/products"
+      className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700"
+    >
       <ArrowLeft className="size-4" aria-hidden="true" /> Products
     </Link>
   );
@@ -131,7 +134,9 @@ export default function ProductDetails() {
               <Detail label="Added">{formatDate(product.createdAt)}</Detail>
             </dl>
           </div>
-          {product.description && <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">{product.description}</p>}
+          {product.description && (
+            <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">{product.description}</p>
+          )}
           {product.supplier?.phone && (
             <p className="mt-3 text-xs text-slate-500">
               Supplier contact: {product.supplier.contactPerson || "—"} · {product.supplier.phone}
@@ -141,7 +146,9 @@ export default function ProductDetails() {
 
         <Card title="Current stock" bodyClassName="p-5">
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold tracking-tight text-slate-900 tabular-nums">{formatNumber(product.quantity)}</span>
+            <span className="text-4xl font-bold tracking-tight text-slate-900 tabular-nums">
+              {formatNumber(product.quantity)}
+            </span>
             <span className="text-slate-500">{product.unit}</span>
           </div>
           <div className="mt-2">
@@ -169,7 +176,10 @@ export default function ProductDetails() {
         title="Movement history"
         description="Last 20 stock movements for this product"
         actions={
-          <Link to={`/movements?product=${product._id}`} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+          <Link
+            to={`/movements?product=${product._id}`}
+            className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+          >
             View full history
           </Link>
         }

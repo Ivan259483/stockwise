@@ -1,0 +1,15 @@
+{
+  "name": "stockwise-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dev tooling for StockWise: headless-Chrome E2E tests, documentation screenshots, diagrams and the technical documentation builder",
+  "type": "module",
+  "author": "Ivan Tadena",
+  "license": "MIT",
+  "scripts": {
+    "e2e": "node e2e.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.13.0"
+  }
+}

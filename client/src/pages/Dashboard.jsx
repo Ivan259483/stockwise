@@ -35,8 +35,22 @@ export default function Dashboard() {
     />
   );
 
-  if (loading && !data) return (<>{header}<PageLoader label="Loading dashboard…" /></>);
-  if (error && !data) return (<>{header}<Card><ErrorState error={error} onRetry={refetch} /></Card></>);
+  if (loading && !data)
+    return (
+      <>
+        {header}
+        <PageLoader label="Loading dashboard…" />
+      </>
+    );
+  if (error && !data)
+    return (
+      <>
+        {header}
+        <Card>
+          <ErrorState error={error} onRetry={refetch} />
+        </Card>
+      </>
+    );
 
   const hasProducts = data.totalProducts > 0;
 
@@ -95,19 +109,29 @@ export default function Dashboard() {
           title="Needs restocking"
           description="Lowest stock first"
           actions={
-            <Link to="/products?status=low_stock" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+            <Link
+              to="/products?status=low_stock"
+              className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+            >
               View all
             </Link>
           }
         >
           {data.lowStockItems.length === 0 ? (
-            <EmptyState icon={Boxes} title="All stocked up" description="No products are at or below their reorder level." />
+            <EmptyState
+              icon={Boxes}
+              title="All stocked up"
+              description="No products are at or below their reorder level."
+            />
           ) : (
             <ul className="divide-y divide-slate-100">
               {data.lowStockItems.map((item) => (
                 <li key={item._id} className="flex items-center gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1">
-                    <Link to={`/products/${item._id}`} className="block truncate text-sm font-medium text-slate-900 hover:text-primary-600">
+                    <Link
+                      to={`/products/${item._id}`}
+                      className="block truncate text-sm font-medium text-slate-900 hover:text-primary-600"
+                    >
                       {item.name}
                     </Link>
                     <p className="text-xs text-slate-500">
@@ -143,7 +167,8 @@ export default function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{movement.productName}</p>
                     <p className="truncate text-xs text-slate-500">
-                      {movement.reason} · {movement.performedBy?.name ?? "Deleted user"} · {formatDateTime(movement.createdAt)}
+                      {movement.reason} · {movement.performedBy?.name ?? "Deleted user"} ·{" "}
+                      {formatDateTime(movement.createdAt)}
                     </p>
                   </div>
                   <span className="hidden sm:block">

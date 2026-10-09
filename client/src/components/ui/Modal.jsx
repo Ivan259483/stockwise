@@ -15,7 +15,16 @@ const SIZES = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl" };
  *   size?: keyof typeof SIZES, dismissible?: boolean
  * }} props
  */
-export default function Modal({ open, onClose, title, description, children, footer, size = "md", dismissible = true }) {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = "md",
+  dismissible = true,
+}) {
   const titleId = useId();
   const panelRef = useRef(null);
   // Refs keep the latest callbacks without re-running the open/close effect,

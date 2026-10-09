@@ -1,5 +1,6 @@
 import { useId } from "react";
-import FormField, { controlClasses, describedBy } from "./FormField";
+import FormField from "./FormField";
+import { controlClasses, describedBy } from "./formControl";
 
 /**
  * Labelled native select (native for good mobile UX and accessibility).

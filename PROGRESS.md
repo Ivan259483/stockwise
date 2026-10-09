@@ -5,8 +5,8 @@
 | 0. Setup check | ✅ Done | Node 26.11, npm 11.20, git 2.54; `gh` and `vercel` logged in. Folder structure, `.gitignore`, README skeleton. |
 | 1. Database | ✅ Done | Reuses the existing ShowCase Atlas cluster with a separate `stockwise` database. `server/.env` written (MONGO_URI + random 96-hex-char JWT_SECRET); values never printed. Atlas CLI not used (session expired). |
 | 2. Backend | ✅ Done | Models, middleware, validators, controllers, routes, seed and smoke scripts. Seed: 2 users, 5 categories, 4 suppliers, 21 products, 31 movements. Local smoke test: **40/40 PASS**. |
-| 3. Frontend | ⏳ Pending | |
-| 4. Polish & code quality | ⏳ Pending | |
+| 3. Frontend | ✅ Done | All pages and the reusable UI kit. `npm run build`: no warnings. Local headless-Chrome E2E: 30/30 PASS (found and fixed a modal reset bug). |
+| 4. Polish & code quality | ✅ Done | ESLint (client + server) and Prettier added; all lint findings fixed (useFetch rewritten without setState-in-effect / ref-in-render, ProductPicker extracted, context split for Fast Refresh, dead constant removed). Full README. Smoke 40/40, E2E 30/30 after refactor. |
 | 5. Deploy (Vercel API + Vercel client) | ⏳ Pending | |
 | 6. Documentation | ⏳ Pending | |
 

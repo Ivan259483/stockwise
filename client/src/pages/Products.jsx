@@ -74,7 +74,13 @@ export default function Products() {
 
   const actions = (product) => (
     <div className="flex items-center justify-end gap-1">
-      <Button to={`/products/${product._id}`} variant="ghost" size="icon" icon={Eye} aria-label={`View ${product.name}`} />
+      <Button
+        to={`/products/${product._id}`}
+        variant="ghost"
+        size="icon"
+        icon={Eye}
+        aria-label={`View ${product.name}`}
+      />
       {isAdmin && (
         <>
           <Button
@@ -160,7 +166,9 @@ export default function Products() {
     <>
       <PageHeader
         title="Products"
-        description={data ? `${formatNumber(data.total)} product${data.total === 1 ? "" : "s"} found` : "Your product catalogue"}
+        description={
+          data ? `${formatNumber(data.total)} product${data.total === 1 ? "" : "s"} found` : "Your product catalogue"
+        }
         actions={
           isAdmin && (
             <Button to="/products/new" icon={Plus}>
@@ -223,7 +231,9 @@ export default function Products() {
             <EmptyState
               icon={PackageSearch}
               title="No products yet"
-              description={isAdmin ? "Add your first product to start tracking stock." : "An admin has not added any products yet."}
+              description={
+                isAdmin ? "Add your first product to start tracking stock." : "An admin has not added any products yet."
+              }
               action={
                 isAdmin && (
                   <Button to="/products/new" icon={Plus}>

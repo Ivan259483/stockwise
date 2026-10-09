@@ -17,15 +17,19 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-screen">
       <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-slate-900 p-12 lg:flex">
-        <div className="absolute -top-24 -right-24 size-96 rounded-full bg-primary-600/30 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-32 -left-16 size-96 rounded-full bg-primary-400/20 blur-3xl" aria-hidden="true" />
+        <div
+          className="absolute -top-24 -right-24 size-96 rounded-full bg-primary-600/30 blur-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -bottom-32 -left-16 size-96 rounded-full bg-primary-400/20 blur-3xl"
+          aria-hidden="true"
+        />
         <div className="relative">
           <Logo inverted />
         </div>
         <div className="relative">
-          <h2 className="text-3xl leading-tight font-bold text-white">
-            Stop guessing what&apos;s on your shelves.
-          </h2>
+          <h2 className="text-3xl leading-tight font-bold text-white">Stop guessing what&apos;s on your shelves.</h2>
           <p className="mt-3 max-w-md text-slate-300">
             StockWise replaces the paper logbook for hardware stores, sari-sari stores and supply shops.
           </p>

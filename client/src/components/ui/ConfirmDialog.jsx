@@ -11,7 +11,15 @@ import Modal from "./Modal";
  *   onConfirm: () => void, onCancel: () => void
  * }} props
  */
-export default function ConfirmDialog({ open, title, message, confirmLabel = "Delete", loading = false, onConfirm, onCancel }) {
+export default function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  loading = false,
+  onConfirm,
+  onCancel,
+}) {
   return (
     <Modal
       open={open}

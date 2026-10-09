@@ -1,5 +1,6 @@
 import { useId } from "react";
-import FormField, { controlClasses, describedBy } from "./FormField";
+import FormField from "./FormField";
+import { controlClasses, describedBy } from "./formControl";
 
 /**
  * Labelled multi-line text input.

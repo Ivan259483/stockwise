@@ -17,8 +17,9 @@ export default function Pagination({ page, totalPages, total, limit, onPageChang
       aria-label="Pagination"
     >
       <p className="text-sm text-slate-600">
-        <span className="font-medium">{formatNumber(first)}</span>–<span className="font-medium">{formatNumber(last)}</span>{" "}
-        of <span className="font-medium">{formatNumber(total)}</span>
+        <span className="font-medium">{formatNumber(first)}</span>–
+        <span className="font-medium">{formatNumber(last)}</span> of{" "}
+        <span className="font-medium">{formatNumber(total)}</span>
       </p>
       <div className="flex items-center gap-2">
         <span className="hidden text-sm text-slate-500 sm:inline">

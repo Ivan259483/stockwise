@@ -1,7 +1,6 @@
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getProducts } from "../../api/products";
 import { recordMovement } from "../../api/stock";
 import useForm from "../../hooks/useForm";
 import { IN_REASONS, OUT_REASONS } from "../../utils/constants";
@@ -12,16 +11,13 @@ import Button from "../ui/Button";
 import Input from "../ui/Input";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
-import Spinner from "../ui/Spinner";
 import Textarea from "../ui/Textarea";
+import ProductPicker, { CurrentStock } from "./ProductPicker";
 
 const TYPES = [
   { value: "IN", label: "Stock in", icon: ArrowDownToLine, active: "bg-emerald-600 text-white" },
   { value: "OUT", label: "Stock out", icon: ArrowUpFromLine, active: "bg-red-600 text-white" },
 ];
-
-/** Max products offered in the picker; plenty for a small store. */
-const PICKER_LIMIT = 100;
 
 /**
  * Records a stock IN or OUT movement.
@@ -40,46 +36,25 @@ const PICKER_LIMIT = 100;
 export default function StockMovementModal({ open, onClose, onSuccess, product = null, defaultType = "IN" }) {
   const { values, errors, setErrors, setField, handleChange, reset } = useForm({});
   const [saving, setSaving] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Depend on the id, not the object: the parent may refetch and pass a new
+  // object for the same product while the modal is open, which must not wipe
+  // what the user typed (or the error message being shown).
+  const fixedProductId = product?._id ?? "";
 
   // Reset the form whenever the modal opens.
   useEffect(() => {
     if (!open) return;
-    const type = defaultType;
     reset({
-      type,
-      productId: product?._id ?? "",
+      type: defaultType,
+      productId: fixedProductId,
       quantity: "",
-      reason: (type === "IN" ? IN_REASONS : OUT_REASONS)[0],
+      reason: (defaultType === "IN" ? IN_REASONS : OUT_REASONS)[0],
       note: "",
     });
-  }, [open, product, defaultType, reset]);
+  }, [open, fixedProductId, defaultType, reset]);
 
-  // Load the product picker only when no product was given.
-  useEffect(() => {
-    if (!open || product) return undefined;
-    let current = true;
-    setLoadingProducts(true);
-    getProducts({ limit: PICKER_LIMIT, sort: "name" })
-      .then((body) => current && setProducts(body.data))
-      .catch(() => current && setProducts([]))
-      .finally(() => current && setLoadingProducts(false));
-    return () => {
-      current = false;
-    };
-  }, [open, product]);
-
-  const selected = product ?? products.find((p) => p._id === values.productId) ?? null;
   const reasons = values.type === "OUT" ? OUT_REASONS : IN_REASONS;
-  const productOptions = useMemo(
-    () =>
-      products.map((p) => ({
-        value: p._id,
-        label: `${p.name} (${p.sku}) · ${formatNumber(p.quantity)} ${p.unit}`,
-      })),
-    [products]
-  );
 
   const changeType = (type) => {
     setField("type", type);
@@ -153,31 +128,10 @@ export default function StockMovementModal({ open, onClose, onSuccess, product =
           </div>
         </fieldset>
 
-        {!product &&
-          (loadingProducts ? (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Spinner size="sm" /> Loading products…
-            </div>
-          ) : (
-            <Select
-              label="Product"
-              name="productId"
-              value={values.productId ?? ""}
-              onChange={handleChange}
-              error={errors.productId}
-              options={productOptions}
-              placeholder="Choose a product…"
-              required
-            />
-          ))}
-
-        {selected && (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            Current stock:{" "}
-            <strong className="text-slate-900">
-              {formatNumber(selected.quantity)} {selected.unit}
-            </strong>
-          </p>
+        {product ? (
+          <CurrentStock product={product} />
+        ) : (
+          <ProductPicker value={values.productId ?? ""} onChange={handleChange} error={errors.productId} />
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">

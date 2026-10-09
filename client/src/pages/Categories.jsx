@@ -50,7 +50,13 @@ export default function Categories() {
   const rowActions = (category) =>
     isAdmin && (
       <div className="flex justify-end gap-1">
-        <Button variant="ghost" size="icon" icon={Pencil} onClick={() => setEditing(category)} aria-label={`Edit ${category.name}`} />
+        <Button
+          variant="ghost"
+          size="icon"
+          icon={Pencil}
+          onClick={() => setEditing(category)}
+          aria-label={`Edit ${category.name}`}
+        />
         <Button
           variant="ghost"
           size="icon"

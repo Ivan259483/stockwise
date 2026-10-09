@@ -11,7 +11,9 @@ export default function Logo({ inverted = false }) {
       <span className="flex size-9 items-center justify-center rounded-lg bg-primary-600 shadow-sm">
         <Layers className="size-5 text-white" aria-hidden="true" />
       </span>
-      <span className={`text-lg font-bold tracking-tight ${inverted ? "text-white" : "text-slate-900"}`}>{APP_NAME}</span>
+      <span className={`text-lg font-bold tracking-tight ${inverted ? "text-white" : "text-slate-900"}`}>
+        {APP_NAME}
+      </span>
     </span>
   );
 }

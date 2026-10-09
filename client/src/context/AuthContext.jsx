@@ -1,9 +1,7 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as authApi from "../api/auth";
 import { setUnauthorizedHandler, TOKEN_KEY } from "../api/client";
-
-/** @type {import("react").Context<ReturnType<typeof useAuthState> | null>} */
-export const AuthContext = createContext(null);
+import { SessionContext } from "./sessionContext";
 
 /**
  * Owns the session: the JWT lives in localStorage (so a refresh keeps you
@@ -63,5 +61,5 @@ function useAuthState() {
 /** Provides the auth state to the whole app. Read it with the `useAuth` hook. */
 export function AuthProvider({ children }) {
   const auth = useAuthState();
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+  return <SessionContext.Provider value={auth}>{children}</SessionContext.Provider>;
 }

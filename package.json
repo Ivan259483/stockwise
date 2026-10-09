@@ -1,0 +1,17 @@
+{
+  "name": "stockwise",
+  "private": true,
+  "version": "1.0.0",
+  "description": "StockWise: MERN inventory management system for Philippine MSMEs",
+  "author": "Ivan Tadena",
+  "license": "MIT",
+  "scripts": {
+    "format": "prettier --write \"server/**/*.js\" \"client/src/**/*.{js,jsx,css}\" \"tools/**/*.mjs\"",
+    "format:check": "prettier --check \"server/**/*.js\" \"client/src/**/*.{js,jsx,css}\" \"tools/**/*.mjs\"",
+    "lint": "npm --prefix server run lint && npm --prefix client run lint"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9",
+    "prettier-plugin-tailwindcss": "^0.8.1"
+  }
+}

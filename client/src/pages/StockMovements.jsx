@@ -44,7 +44,9 @@ export default function StockMovements() {
       <PageHeader
         title="Stock movements"
         description={
-          data ? `${formatNumber(data.total)} movement${data.total === 1 ? "" : "s"} recorded` : "History of every stock change"
+          data
+            ? `${formatNumber(data.total)} movement${data.total === 1 ? "" : "s"} recorded`
+            : "History of every stock change"
         }
         actions={
           <Button icon={Plus} onClick={() => setModalOpen(true)}>
@@ -102,7 +104,9 @@ export default function StockMovements() {
           <EmptyState
             icon={ArrowLeftRight}
             title={hasFilters ? "No movements match these filters" : "No stock movements yet"}
-            description={hasFilters ? "Try a wider date range or another product." : "Record your first stock in or stock out."}
+            description={
+              hasFilters ? "Try a wider date range or another product." : "Record your first stock in or stock out."
+            }
             action={
               hasFilters ? (
                 <Button
