@@ -7,7 +7,7 @@
 | 2. Backend | ✅ Done | Models, middleware, validators, controllers, routes, seed and smoke scripts. Seed: 2 users, 5 categories, 4 suppliers, 21 products, 31 movements. Local smoke test: **40/40 PASS**. |
 | 3. Frontend | ✅ Done | All pages and the reusable UI kit. `npm run build`: no warnings. Local headless-Chrome E2E: 30/30 PASS (found and fixed a modal reset bug). |
 | 4. Polish & code quality | ✅ Done | ESLint (client + server) and Prettier added; all lint findings fixed (useFetch rewritten without setState-in-effect / ref-in-render, ProductPicker extracted, context split for Fast Refresh, dead constant removed). Full README. Smoke 40/40, E2E 30/30 after refactor. |
-| 5. Deploy (Vercel API + Vercel client) | ⏳ Pending | |
+| 5. Deploy (Vercel API + Vercel client) | ✅ Done | API: https://stockwise-api-ivan.vercel.app (Express preset, root `server`). Client: https://stockwise-ivan.vercel.app (Vite, root `client`). Both connected to GitHub `Ivan259483/stockwise` (auto-deploy on push), Deployment Protection off, env vars added with `vercel env add` (values never printed). CORS verified. Live smoke **40/40**, live E2E **30/30**. Database re-seeded afterwards. |
 | 6. Documentation | ⏳ Pending | |
 
 ## Decisions and deviations from the original brief

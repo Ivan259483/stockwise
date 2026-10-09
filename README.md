@@ -8,8 +8,8 @@ Final project for **Integrative Programming and Technologies** (Section INF238) 
 
 | Resource | URL |
 |---|---|
-| Web app (Vercel) | _to be added after deployment_ |
-| REST API (Vercel serverless functions) | _to be added after deployment_ |
+| Web app (Vercel) | https://stockwise-ivan.vercel.app |
+| REST API (Vercel serverless functions) | https://stockwise-api-ivan.vercel.app (health: [/api/health](https://stockwise-api-ivan.vercel.app/api/health)) |
 | Source code | https://github.com/Ivan259483/stockwise |
 
 ## Overview
@@ -97,6 +97,17 @@ stockwise/
 | `stockmovements` | product, productName/sku snapshots, type (`IN`/`OUT`), quantity, previousQty, newQty, reason, note, performedBy | belongs to one product and one user |
 
 All collections have `createdAt`/`updatedAt` timestamps.
+
+## Deployment
+
+Both apps are separate Vercel projects connected to this GitHub repository, so every push to `main` redeploys them automatically.
+
+| Vercel project | Root directory | Preset | Environment variables (Production) |
+|---|---|---|---|
+| `stockwise-api-ivan` | `server` | Express (serverless functions) | `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `NODE_ENV=production`, `CLIENT_URL` |
+| `stockwise-ivan` | `client` | Vite (static) | `VITE_API_URL=https://stockwise-api-ivan.vercel.app` |
+
+`client/vercel.json` rewrites every path to `index.html`, so refreshing a deep link such as `/products/123` works. Deployment Protection is disabled on both projects so the production URLs are public.
 
 ## Getting Started (local)
 
