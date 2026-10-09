@@ -154,6 +154,27 @@ cd tools && npm install && node e2e.mjs       # 30 headless-Chrome steps
 |---|---|---|
 | `VITE_API_URL` | API base URL, no trailing slash | `http://localhost:5050` |
 
+## Testing
+
+| Test | Command | Result (local and live) |
+|---|---|---|
+| API smoke test: 40 checks covering auth, CRUD, stock in/out, 409 insufficient stock, 400 invalid ID, 403 staff on admin route, 401 no token, 409 duplicate SKU | `cd server && npm run smoke` (set `API_URL=https://stockwise-api-ivan.vercel.app/api` for live) | 40/40 PASS |
+| Browser E2E test: 30 headless-Chrome steps for admin and staff, covering validation errors, CRUD, stock movements, insufficient stock, the 375 px mobile layout, refreshing a nested route and session expiry | `cd tools && node e2e.mjs [baseUrl]` | 30/30 PASS |
+| Lint and formatting | `npm run lint` · `npm run format:check` | 0 errors |
+| Production build | `cd client && npm run build` | no warnings |
+
+## Documentation
+
+| File | Description |
+|---|---|
+| [`docs/StockWise_Technical_Documentation.docx`](docs/StockWise_Technical_Documentation.docx) | Technical documentation (Word) |
+| [`docs/StockWise_Technical_Documentation.pdf`](docs/StockWise_Technical_Documentation.pdf) | Same document as PDF |
+| [`docs/screenshots/`](docs/screenshots) | Screenshots of the live site at 1440 px and 390 px |
+| [`docs/diagrams/`](docs/diagrams) | System architecture and ERD (Mermaid sources + PNG) |
+| [`docs/Presentation_Script.md`](docs/Presentation_Script.md) | 5-minute presentation outline and demo script |
+
+The documents are generated from `tools/docs/content.mjs`: `cd tools && npm install && npm run screenshots && npm run diagrams && npm run docs`.
+
 ## Demo Accounts
 
 | Role | Email | Password |

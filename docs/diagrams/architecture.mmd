@@ -1,0 +1,24 @@
+flowchart TB
+    subgraph CLIENT["Presentation tier · React SPA on Vercel static hosting (stockwise-ivan)"]
+        direction LR
+        U(["Store owner / staff<br/>(desktop or phone browser)"])
+        C["<b>React + Vite</b><br/>React Router pages · Tailwind CSS · Recharts<br/>AuthContext stores the JWT; Axios sends it"]
+        U --> C
+    end
+
+    subgraph API["Application tier · Express REST API on Vercel serverless functions (stockwise-api-ivan)"]
+        direction LR
+        M["<b>1. Middleware</b><br/>helmet · cors · json<br/>morgan · dbConnect"]
+        A["<b>2. Authentication</b><br/>protect: verify JWT<br/>authorize: admin/staff"]
+        R["<b>3. Validate + controller</b><br/>express-validator rules<br/>business logic"]
+        E["<b>4. Error handler</b><br/>one JSON error shape<br/>400/401/403/404/409"]
+        M --> A --> R --> E
+    end
+
+    subgraph DATA["Data tier · MongoDB Atlas"]
+        direction LR
+        D[("<b>stockwise</b> database<br/>users · categories · suppliers<br/>products · stockmovements")]
+    end
+
+    CLIENT -- "HTTPS + JSON (REST): POST /api/auth/login returns a JWT (1 day);<br/>every later request sends Authorization: Bearer JWT" --> API
+    API -- "Mongoose ODM (connection cached across invocations)" --> DATA

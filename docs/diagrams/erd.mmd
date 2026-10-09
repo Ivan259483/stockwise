@@ -1,0 +1,55 @@
+erDiagram
+    direction LR
+    USER ||--o{ STOCK_MOVEMENT : "performs"
+    CATEGORY ||--o{ PRODUCT : "groups"
+    SUPPLIER |o--o{ PRODUCT : "supplies"
+    PRODUCT ||--o{ STOCK_MOVEMENT : "has history"
+
+    USER {
+        ObjectId _id PK
+        String name "required"
+        String email UK "required, lowercase"
+        String password "bcrypt hash, hidden"
+        String role "admin | staff"
+        Boolean isActive "default true"
+    }
+    CATEGORY {
+        ObjectId _id PK
+        String name UK "required, case-insensitive"
+        String description
+    }
+    SUPPLIER {
+        ObjectId _id PK
+        String name "required"
+        String contactPerson
+        String phone
+        String email
+        String address
+    }
+    PRODUCT {
+        ObjectId _id PK
+        String name "required"
+        String sku UK "required, uppercase"
+        ObjectId category FK "required"
+        ObjectId supplier FK "optional"
+        String description
+        String unit "pcs | box | kg | L | pack"
+        Number costPrice ">= 0"
+        Number sellingPrice ">= 0"
+        Number quantity "integer >= 0"
+        Number reorderLevel "integer >= 0"
+        String image "data URL or URL"
+    }
+    STOCK_MOVEMENT {
+        ObjectId _id PK
+        ObjectId product FK
+        String productName "snapshot"
+        String sku "snapshot"
+        String type "IN | OUT"
+        Number quantity "integer > 0"
+        Number previousQty
+        Number newQty
+        String reason "Purchase, Sale, ..."
+        String note
+        ObjectId performedBy FK
+    }
