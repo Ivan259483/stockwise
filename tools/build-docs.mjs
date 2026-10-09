@@ -583,24 +583,22 @@ const printPdf = async (browser, html) => {
   return pdf;
 };
 
-/** Finds the page on which each heading appears (skipping the cover and TOC). */
+/**
+ * Finds the page each heading starts on, using the PDF outline (bookmarks)
+ * that Chrome generates from the h1/h2 elements. This is exact even for short
+ * headings such as "Products" that also appear in body text.
+ */
 const findHeadingPages = async (pdfBuffer) => {
   const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
-  const pageTexts = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const content = await (await pdf.getPage(i)).getTextContent();
-    pageTexts.push(
-      content.items
-        .map((item) => item.str)
-        .join(" ")
-        .replace(/\s+/g, " ")
-    );
-  }
+  const flatten = (items) => items.flatMap((item) => [item, ...flatten(item.items ?? [])]);
+  const outline = flatten((await pdf.getOutline()) ?? []);
+
   const pages = {};
   for (const block of BLOCKS.filter((b) => b.type === "h1" || b.type === "h2")) {
-    const index = pageTexts.findIndex((text, i) => i >= 2 && text.includes(block.text));
-    if (index === -1) throw new Error(`Heading not found in PDF: ${block.text}`);
-    pages[block.text] = index + 1;
+    const entry = outline.find((item) => item.title.trim() === block.text && !(item.title in pages));
+    if (!entry) throw new Error(`Heading not found in PDF outline: ${block.text}`);
+    const dest = typeof entry.dest === "string" ? await pdf.getDestination(entry.dest) : entry.dest;
+    pages[block.text] = (await pdf.getPageIndex(dest[0])) + 1;
   }
   return { pages, total: pdf.numPages };
 };

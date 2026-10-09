@@ -24,8 +24,8 @@ const shot = (name) => `../docs/screenshots/${name}.png`;
 /** Body blocks after the cover page and the table of contents. */
 export const BODY = [
   // ------------------------------------------------------------------ 1
-  { type: "h1", text: "1. Project Overview" },
-  { type: "h2", text: "1.1 Background and Problem" },
+  { type: "h1", text: "Project Overview" },
+  { type: "h2", text: "Background and Problem" },
   {
     type: "p",
     text: "Micro, small and medium enterprises (MSMEs) account for more than 99 percent of all business establishments in the Philippines, according to the Department of Trade and Industry. Many of them, such as neighborhood hardware stores, sari-sari stores and supply shops, still record their stock in paper logbooks or in loosely maintained spreadsheets.",
@@ -34,7 +34,7 @@ export const BODY = [
     type: "p",
     text: 'Manual record keeping causes recurring problems. Owners discover that an item has run out only when a customer asks for it (stockouts), they reorder items that are already plentiful (overstocking), and items go missing without any record of when or by whom the quantity was changed. Because the records are scattered, the owner also cannot easily answer basic questions such as "How much is my current stock worth?" or "What do I need to reorder this week?"',
   },
-  { type: "h2", text: "1.2 Proposed Solution" },
+  { type: "h2", text: "Proposed Solution" },
   {
     type: "p",
     text: "**StockWise** is a web-based inventory management system built on the MERN stack (MongoDB, Express, React and Node.js). It replaces the logbook with a single, searchable product catalogue and records every stock change as a *stock movement* that stores who made the change, when, why, and the quantity before and after it. A dashboard summarizes the total stock value in Philippine pesos, highlights products that are low or out of stock, and charts stock movements over the last seven days.",
@@ -43,7 +43,7 @@ export const BODY = [
     type: "p",
     text: "The system has two roles. An **admin** (typically the store owner) manages products, categories, suppliers and user accounts. A **staff** member can view all inventory data and record stock in and stock out, but cannot change the catalogue. StockWise runs in any modern browser on a desktop computer or a mobile phone and is deployed publicly on Vercel with a MongoDB Atlas database.",
   },
-  { type: "h2", text: "1.3 Live Deliverables" },
+  { type: "h2", text: "Live Deliverables" },
   {
     type: "table",
     caption: "Deployed resources",
@@ -59,7 +59,7 @@ export const BODY = [
   },
 
   // ------------------------------------------------------------------ 2
-  { type: "h1", text: "2. Objectives" },
+  { type: "h1", text: "Objectives" },
   {
     type: "p",
     text: "The general objective of the project is to develop a secure, responsive web application that allows a small Philippine retail business to track its inventory accurately and to know what to reorder. The specific, measurable objectives are the following:",
@@ -79,8 +79,8 @@ export const BODY = [
   },
 
   // ------------------------------------------------------------------ 3
-  { type: "h1", text: "3. Scope and Limitations" },
-  { type: "h2", text: "3.1 Scope" },
+  { type: "h1", text: "Scope and Limitations" },
+  { type: "h2", text: "Scope" },
   {
     type: "bullets",
     items: [
@@ -93,7 +93,7 @@ export const BODY = [
       "A responsive interface for desktop, tablet and mobile browsers.",
     ],
   },
-  { type: "h2", text: "3.2 Limitations" },
+  { type: "h2", text: "Limitations" },
   {
     type: "bullets",
     items: [
@@ -109,7 +109,7 @@ export const BODY = [
   },
 
   // ------------------------------------------------------------------ 4
-  { type: "h1", text: "4. System Architecture" },
+  { type: "h1", text: "System Architecture" },
   {
     type: "p",
     text: "StockWise follows a three-tier architecture. The presentation tier (React) and the application tier (Express) are deployed as two separate Vercel projects and communicate only through a RESTful JSON API over HTTPS. The data tier is a MongoDB database hosted on MongoDB Atlas. Figure 1 shows the tiers and the path of a request through the API.",
@@ -120,12 +120,12 @@ export const BODY = [
     width: 5.6,
     caption: "System architecture of StockWise",
   },
-  { type: "h2", text: "4.1 Presentation Tier (Client)" },
+  { type: "h2", text: "Presentation Tier (Client)" },
   {
     type: "p",
     text: "The client is a single-page application built with React 19 and Vite and styled with Tailwind CSS. React Router maps each URL to a page, and route guards (ProtectedRoute and AdminRoute) keep signed-out users and staff away from pages they may not use. All server calls go through one Axios instance whose interceptors attach the JWT to every request, show an error notification for every failed request, and end the session automatically when the server answers 401 (Unauthorized). The production build is served as static files by Vercel, and a rewrite rule sends every path to index.html so that deep links such as /products/123 work when the page is refreshed.",
   },
-  { type: "h2", text: "4.2 Application Tier (REST API)" },
+  { type: "h2", text: "Application Tier (REST API)" },
   {
     type: "p",
     text: "The API is an Express 5 application written in Node.js with ES modules. It is organized by responsibility into models, controllers, routes, middleware, validators and utilities. Every request passes through the same pipeline:",
@@ -144,12 +144,12 @@ export const BODY = [
     type: "p",
     text: "On Vercel, the Express application is exported from server.js and runs as a serverless function, while app.listen is called only during local development. The Mongoose connection promise is cached across invocations to avoid opening a new connection pool for every request.",
   },
-  { type: "h2", text: "4.3 Data Tier (Database)" },
+  { type: "h2", text: "Data Tier (Database)" },
   {
     type: "p",
-    text: "MongoDB Atlas stores five collections in a database named stockwise. Mongoose schemas define the structure, validation rules, indexes and relationships of the documents, as described in Section 5.",
+    text: "MongoDB Atlas stores five collections in a database named stockwise. Mongoose schemas define the structure, validation rules, indexes and relationships of the documents, as described in the Database Design section.",
   },
-  { type: "h2", text: "4.4 REST and JWT Authentication Flow" },
+  { type: "h2", text: "REST and JWT Authentication Flow" },
   {
     type: "numbered",
     items: [
@@ -160,14 +160,14 @@ export const BODY = [
       "If the token is missing, invalid or expired, the API returns 401; the client clears the session and redirects to the login page.",
     ],
   },
-  { type: "h2", text: "4.5 Stock Integrity" },
+  { type: "h2", text: "Stock Integrity" },
   {
     type: "p",
     text: 'A stock-out is performed with a single atomic MongoDB operation that decreases the quantity only if enough stock is available (a findOneAndUpdate with the condition quantity ≥ requested amount). If the condition fails, the API returns 409 (Conflict) with the message "Insufficient stock: only X available". Because the check and the update happen in one database operation, two users recording sales at the same moment can never make the stock negative. Each successful change then writes a stock movement record; if writing the record fails, the quantity change is reversed so that stock levels never change without a matching history entry.',
   },
 
   // ------------------------------------------------------------------ 5
-  { type: "h1", text: "5. Database Design" },
+  { type: "h1", text: "Database Design" },
   {
     type: "p",
     text: "Figure 2 shows the five collections and their relationships. Products reference their category and, optionally, their supplier. Stock movements reference the product and the user who recorded them, and they also store a copy of the product name and SKU so that the history remains readable after a product is renamed or deleted. All collections include automatic createdAt and updatedAt timestamps, which are omitted from the diagram for clarity.",
@@ -268,7 +268,7 @@ export const BODY = [
 
   // ------------------------------------------------------------------ 6
   { type: "pageBreak" },
-  { type: "h1", text: "6. User Interface Design" },
+  { type: "h1", text: "User Interface Design" },
   {
     type: "p",
     text: "The interface uses a consistent indigo and slate color palette, rounded cards and clear spacing. Color-coded badges show stock status (green for in stock, amber for low stock and red for out of stock). All screenshots below were captured from the live deployment at a desktop width of 1440 pixels and a mobile width of 390 pixels.",
@@ -391,8 +391,8 @@ export const BODY = [
 
   // ------------------------------------------------------------------ 7
   { type: "pageBreak" },
-  { type: "h1", text: "7. Feature List" },
-  { type: "h2", text: "7.1 Authentication and Roles" },
+  { type: "h1", text: "Feature List" },
+  { type: "h2", text: "Authentication and Roles" },
   {
     type: "bullets",
     items: [
@@ -403,7 +403,7 @@ export const BODY = [
       "Protected and admin-only routes in the client; automatic logout when the session expires.",
     ],
   },
-  { type: "h2", text: "7.2 Dashboard" },
+  { type: "h2", text: "Dashboard" },
   {
     type: "bullets",
     items: [
@@ -413,7 +413,7 @@ export const BODY = [
       "List of the five most recent stock movements.",
     ],
   },
-  { type: "h2", text: "7.3 Products" },
+  { type: "h2", text: "Products" },
   {
     type: "bullets",
     items: [
@@ -424,7 +424,7 @@ export const BODY = [
       "Product details page with stock value, potential sales and the last 20 movements.",
     ],
   },
-  { type: "h2", text: "7.4 Categories" },
+  { type: "h2", text: "Categories" },
   {
     type: "bullets",
     items: [
@@ -433,7 +433,7 @@ export const BODY = [
       "Deletion is blocked with a clear message while products still use the category.",
     ],
   },
-  { type: "h2", text: "7.5 Suppliers" },
+  { type: "h2", text: "Suppliers" },
   {
     type: "bullets",
     items: [
@@ -441,7 +441,7 @@ export const BODY = [
       "Create, edit and delete suppliers (admin); deleting a supplier removes it from its products.",
     ],
   },
-  { type: "h2", text: "7.6 Stock Movements" },
+  { type: "h2", text: "Stock Movements" },
   {
     type: "bullets",
     items: [
@@ -450,7 +450,7 @@ export const BODY = [
       "Complete history with previous and new quantities, filterable by product, type and date range, with pagination.",
     ],
   },
-  { type: "h2", text: "7.7 Users" },
+  { type: "h2", text: "Users" },
   {
     type: "bullets",
     items: [
@@ -458,7 +458,7 @@ export const BODY = [
       "Administrators cannot demote, deactivate or delete their own account.",
     ],
   },
-  { type: "h2", text: "7.8 Validation and Error Handling" },
+  { type: "h2", text: "Validation and Error Handling" },
   {
     type: "bullets",
     items: [
@@ -468,7 +468,7 @@ export const BODY = [
       "Inline field errors, a notification for every failed request, and loading states that disable buttons while a request is in progress.",
     ],
   },
-  { type: "h2", text: "7.9 Responsive Design" },
+  { type: "h2", text: "Responsive Design" },
   {
     type: "bullets",
     items: [
@@ -477,7 +477,7 @@ export const BODY = [
       "Loading, empty and error states on every list.",
     ],
   },
-  { type: "h2", text: "7.10 API Endpoints" },
+  { type: "h2", text: "API Endpoints" },
   {
     type: "table",
     caption: "REST API endpoints (base path /api)",
@@ -513,8 +513,8 @@ export const BODY = [
 
   // ------------------------------------------------------------------ 8
   { type: "pageBreak" },
-  { type: "h1", text: "8. Summary and Future Work" },
-  { type: "h2", text: "8.1 Summary" },
+  { type: "h1", text: "Summary and Future Work" },
+  { type: "h2", text: "Summary" },
   {
     type: "p",
     text: "StockWise demonstrates how the MERN stack can solve a common problem of Philippine MSMEs: inaccurate, untraceable inventory records. The application integrates a React client with an Express REST API and a MongoDB Atlas database, and it covers the core concepts of the course, namely authentication, CRUD operations, database management, API integration, input validation, error handling and responsive user interface design.",
@@ -523,7 +523,7 @@ export const BODY = [
     type: "p",
     text: "The code is modular and documented. The server separates models, controllers, routes, middleware and validators, and the client is built from reusable components and custom hooks. ESLint and Prettier enforce consistent coding standards.",
   },
-  { type: "h2", text: "8.2 Testing and Verification" },
+  { type: "h2", text: "Testing and Verification" },
   {
     type: "bullets",
     items: [
@@ -532,7 +532,7 @@ export const BODY = [
       "**Code quality:** the client builds without warnings and both projects pass ESLint with no errors.",
     ],
   },
-  { type: "h2", text: "8.3 Future Work" },
+  { type: "h2", text: "Future Work" },
   {
     type: "bullets",
     items: [
@@ -547,8 +547,8 @@ export const BODY = [
 
   // ------------------------------------------------------------------ 9
   { type: "pageBreak" },
-  { type: "h1", text: "9. Sources" },
-  { type: "h2", text: "9.1 Frameworks, Libraries and Services" },
+  { type: "h1", text: "Sources" },
+  { type: "h2", text: "Frameworks, Libraries and Services" },
   {
     type: "numbered",
     items: [
@@ -581,7 +581,7 @@ export const BODY = [
       "Prettier. (n.d.). *Prettier: An opinionated code formatter*. https://prettier.io/",
     ],
   },
-  { type: "h2", text: "9.2 References" },
+  { type: "h2", text: "References" },
   {
     type: "numbered",
     start: 28,
