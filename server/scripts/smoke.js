@@ -452,6 +452,151 @@ const run = async () => {
     Boolean(b.data.totalProducts > 0 && b.data.movementsByDay.length === 7 && Array.isArray(b.data.valueByCategory))
   );
 
+  // --- Purchase orders -----------------------------------------------------
+  check(
+    "PO without items → 400",
+    await request("POST", "/purchase-orders", { token: staffToken, body: { supplier: supplier?._id, items: [] } }),
+    400,
+    (b) => b.errors.some((e) => e.field === "items")
+  );
+  check(
+    "PO with the same product twice → 400",
+    await request("POST", "/purchase-orders", {
+      token: staffToken,
+      body: {
+        supplier: supplier?._id,
+        items: [
+          { product: product?._id, quantity: 1, unitCost: 1 },
+          { product: product?._id, quantity: 2, unitCost: 1 },
+        ],
+      },
+    }),
+    400
+  );
+  const po = check(
+    "Staff requests a PO (status Requested, totals computed)",
+    await request("POST", "/purchase-orders", {
+      token: staffToken,
+      body: { supplier: supplier?._id, items: [{ product: product?._id, quantity: 20, unitCost: 95 }], notes: "Smoke" },
+    }),
+    201,
+    (b) =>
+      /^PO-\d{4}-\d{4}$/.test(b.data.poNumber) &&
+      b.data.status === "Requested" &&
+      b.data.totalAmount === 1900 &&
+      b.data.items[0].sku === sku &&
+      b.data.requestedBy.name === "Staff User"
+  )?.data;
+  check(
+    "Staff approving a PO → 403",
+    await request("PATCH", `/purchase-orders/${po?._id}/approve`, { token: staffToken }),
+    403
+  );
+  check(
+    "PO list filtered by status with per-status counts",
+    await request("GET", "/purchase-orders?status=Requested", { token: staffToken }),
+    200,
+    (b) =>
+      b.data.some((o) => o._id === po?._id) && b.counts.Requested >= 1 && b.data.every((o) => o.status === "Requested")
+  );
+  check(
+    "Admin approves the PO",
+    await request("PATCH", `/purchase-orders/${po?._id}/approve`, { token: adminToken }),
+    200,
+    (b) => b.data.status === "Approved" && b.data.approvedBy.name === "Admin User"
+  );
+  check(
+    "Approving twice → 409",
+    await request("PATCH", `/purchase-orders/${po?._id}/approve`, { token: adminToken }),
+    409
+  );
+  check(
+    "Cancelling an approved PO → 409",
+    await request("PATCH", `/purchase-orders/${po?._id}/cancel`, { token: adminToken }),
+    409
+  );
+  check(
+    "Staff marks the PO received (stock IN per item)",
+    await request("PATCH", `/purchase-orders/${po?._id}/receive`, { token: staffToken }),
+    200,
+    (b) => b.data.status === "Received" && b.data.receivedBy.name === "Staff User"
+  );
+  check(
+    "Receiving updated the stock atomically (3 + 20 = 23)",
+    await request("GET", `/products/${product?._id}`, { token: staffToken }),
+    200,
+    (b) =>
+      b.data.product.quantity === 23 &&
+      b.data.movements[0].type === "IN" &&
+      b.data.movements[0].reason === "Purchase" &&
+      b.data.movements[0].poNumber === po?.poNumber
+  );
+  check(
+    "Receiving twice → 409 (no double stock)",
+    await request("PATCH", `/purchase-orders/${po?._id}/receive`, { token: staffToken }),
+    409
+  );
+  check(
+    "PO timeline records who did what and when",
+    await request("GET", `/purchase-orders/${po?._id}`, { token: staffToken }),
+    200,
+    (b) =>
+      b.data.history.map((h) => h.action).join(",") === "Requested,Approved,Received" &&
+      b.data.history.every((h) => h.by?.name && h.at)
+  );
+  const poToReject = check(
+    "Admin requests a second PO",
+    await request("POST", "/purchase-orders", {
+      token: adminToken,
+      body: { supplier: supplier?._id, items: [{ product: product?._id, quantity: 5, unitCost: 90 }] },
+    }),
+    201
+  )?.data;
+  check(
+    "Reject without a reason → 400",
+    await request("PATCH", `/purchase-orders/${poToReject?._id}/reject`, { token: adminToken, body: {} }),
+    400
+  );
+  check(
+    "Staff cannot cancel someone else's PO → 403",
+    await request("PATCH", `/purchase-orders/${poToReject?._id}/cancel`, { token: staffToken }),
+    403
+  );
+  check(
+    "Admin rejects with a reason",
+    await request("PATCH", `/purchase-orders/${poToReject?._id}/reject`, {
+      token: adminToken,
+      body: { reason: "Price too high" },
+    }),
+    200,
+    (b) => b.data.status === "Rejected" && b.data.rejectionReason === "Price too high"
+  );
+  const poToCancel = check(
+    "Staff requests a third PO",
+    await request("POST", "/purchase-orders", {
+      token: staffToken,
+      body: { supplier: supplier?._id, items: [{ product: product?._id, quantity: 2, unitCost: 95 }] },
+    }),
+    201
+  )?.data;
+  check(
+    "Requester cancels their Requested PO",
+    await request("PATCH", `/purchase-orders/${poToCancel?._id}/cancel`, {
+      token: staffToken,
+      body: { reason: "Ordered by phone instead" },
+    }),
+    200,
+    (b) => b.data.status === "Cancelled"
+  );
+  check(
+    "Receiving a cancelled PO → 409",
+    await request("PATCH", `/purchase-orders/${poToCancel?._id}/receive`, { token: staffToken }),
+    409
+  );
+  check("Dashboard includes PO counts", await request("GET", "/dashboard/summary", { token: staffToken }), 200, (b) =>
+    Boolean(b.data.purchaseOrders.counts.Received >= 1 && b.data.purchaseOrders.counts.Cancelled >= 1)
+  );
+
   // --- Error handling and authorization ------------------------------------
   check(
     "Invalid ID → 400",

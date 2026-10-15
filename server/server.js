@@ -19,6 +19,7 @@ import authRoutes from "./routes/authRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
+import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -79,6 +80,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 app.use(notFound);
