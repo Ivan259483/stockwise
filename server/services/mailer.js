@@ -35,7 +35,8 @@ export const isMailConfigured = () => Boolean(process.env.SMTP_USER && process.e
 export const isDeliverable = (email) => {
   const domain = String(email).split("@")[1]?.toLowerCase() ?? "";
   if (!domain) return false;
-  return !SUPPRESSED_DOMAINS.includes(domain) && !SUPPRESSED_TLDS.some((tld) => domain.endsWith(tld));
+  const suppressed = SUPPRESSED_DOMAINS.some((blocked) => domain === blocked || domain.endsWith(`.${blocked}`));
+  return !suppressed && !SUPPRESSED_TLDS.some((tld) => domain.endsWith(tld));
 };
 
 let transporter;
