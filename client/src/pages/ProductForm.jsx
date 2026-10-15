@@ -40,7 +40,8 @@ const toFormValues = (product) => ({
   name: product.name,
   sku: product.sku,
   category: product.category?._id ?? "",
-  supplier: product.supplier?._id ?? "",
+  // An archived supplier is not offered in the dropdown, so the field starts empty (see the hint).
+  supplier: product.supplier && !product.supplier.archived ? product.supplier._id : "",
   description: product.description ?? "",
   unit: product.unit,
   costPrice: String(product.costPrice),
@@ -90,6 +91,8 @@ export default function ProductForm() {
     [id]
   );
 
+  const archivedSupplier = data?.product?.supplier?.archived ? data.product.supplier : null;
+
   // Fill the form once the product (edit mode) or the blank defaults (create mode) are ready.
   useEffect(() => {
     reset(data?.product ? toFormValues(data.product) : EMPTY_PRODUCT);
@@ -123,11 +126,13 @@ export default function ProductForm() {
       return;
     }
 
+    // Keep an archived supplier unless the admin picked another one.
+    const keepArchivedSupplier = Boolean(archivedSupplier) && !values.supplier;
     const payload = {
       name: values.name.trim(),
       sku: values.sku.trim().toUpperCase(),
       category: values.category,
-      supplier: values.supplier || null,
+      ...(keepArchivedSupplier ? {} : { supplier: values.supplier || null }),
       description: values.description.trim(),
       unit: values.unit,
       costPrice: Number(values.costPrice),
@@ -234,7 +239,12 @@ export default function ProductForm() {
               onChange={handleChange}
               error={errors.supplier}
               options={supplierOptions}
-              placeholder="None"
+              placeholder={archivedSupplier ? "Keep current supplier" : "None"}
+              hint={
+                archivedSupplier
+                  ? `The current supplier, ${archivedSupplier.name}, is archived. It is kept unless you choose another one.`
+                  : undefined
+              }
             />
             <Textarea
               label="Description"

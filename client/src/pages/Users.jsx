@@ -1,15 +1,16 @@
-import { Pencil, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
+import { Archive, Pencil, UserPlus, Users as UsersIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { deleteUser, getUsers, updateUser } from "../api/users";
+import { archiveRecord } from "../api/archive";
+import { getUsers, updateUser } from "../api/users";
 import UserFormModal from "../components/forms/UserFormModal";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
 import PageHeader from "../components/ui/PageHeader";
+import ReasonDialog from "../components/ui/ReasonDialog";
 import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
@@ -44,7 +45,8 @@ function Toggle({ checked, onChange, disabled, label }) {
  * Users page (admin only, guarded by AdminRoute and the API).
  *
  * Admins add users, edit their name, email and role, activate or deactivate
- * accounts, and delete them.
+ * accounts, and archive accounts of people who have left (archived users
+ * cannot log in; admins can restore them from the Archive page).
  * Deactivating is the safer option: the person can no longer sign in, but the
  * account and its history stay. The controls for your own account are disabled
  * so an admin can never lock themselves out (the API enforces this too).
@@ -54,8 +56,8 @@ export default function Users() {
   const { data: users, loading, error, refetch } = useFetch(() => getUsers().then((body) => body.data));
   // The row being saved; its controls are disabled until the request finishes.
   const [pendingId, setPendingId] = useState(null);
-  const [toDelete, setToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [toArchive, setToArchive] = useState(null);
+  const [archiving, setArchiving] = useState(false);
   // `editing`: undefined = form closed, null = adding a user, object = editing that user.
   const [editing, setEditing] = useState(undefined);
 
@@ -74,17 +76,17 @@ export default function Users() {
     }
   };
 
-  const confirmDelete = async () => {
-    setDeleting(true);
+  const confirmArchive = async (reason) => {
+    setArchiving(true);
     try {
-      await deleteUser(toDelete._id);
-      toast.success(`${toDelete.name}'s account was deleted`);
-      setToDelete(null);
+      await archiveRecord("users", toArchive._id, reason);
+      toast.success(`${toArchive.name}'s account was archived`);
+      setToArchive(null);
       refetch();
     } catch {
       // Error toast comes from the axios interceptor.
     } finally {
-      setDeleting(false);
+      setArchiving(false);
     }
   };
 
@@ -133,11 +135,11 @@ export default function Users() {
       <Button
         variant="ghost"
         size="icon"
-        icon={Trash2}
-        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+        icon={Archive}
+        className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
         disabled={isSelf(u)}
-        onClick={() => setToDelete(u)}
-        aria-label={`Delete ${u.name}`}
+        onClick={() => setToArchive(u)}
+        aria-label={`Archive ${u.name}`}
       />
     </div>
   );
@@ -210,19 +212,21 @@ export default function Users() {
         }}
       />
 
-      <ConfirmDialog
-        open={Boolean(toDelete)}
-        title="Delete user?"
+      <ReasonDialog
+        open={Boolean(toArchive)}
+        title="Archive user?"
         message={
           <>
-            <strong className="text-slate-900">{toDelete?.name}</strong> ({toDelete?.email}) will lose access
-            permanently. Their past stock movements stay in the history. To block access temporarily, deactivate the
-            account instead.
+            <strong className="text-slate-900">{toArchive?.name}</strong> ({toArchive?.email}) will no longer be able to
+            sign in and will be hidden from this list. Their stock movements and purchase orders stay in the history. To
+            block access only for a while, deactivate the account instead.
           </>
         }
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setToDelete(null)}
+        placeholder="e.g. Resigned in October 2026"
+        confirmLabel="Archive"
+        loading={archiving}
+        onConfirm={confirmArchive}
+        onCancel={() => setToArchive(null)}
       />
     </>
   );

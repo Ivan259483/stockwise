@@ -1,7 +1,8 @@
-import { ArrowLeft, Ban, CheckCircle2, ClipboardList, PackageCheck, XCircle } from "lucide-react";
+import { Archive, ArrowLeft, Ban, CheckCircle2, ClipboardList, PackageCheck, XCircle } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useParams } from "react-router-dom";
+import { archiveRecord } from "../api/archive";
 import {
   approvePurchaseOrder,
   cancelPurchaseOrder,
@@ -40,12 +41,13 @@ function Detail({ label, children }) {
  * - Requested: admin approves or rejects (with a reason); the requester or an admin can cancel.
  * - Approved: anyone marks it Received when the delivery arrives, which adds
  *   every item to stock as a "Purchase" stock-in movement.
+ * - Received, Rejected or Cancelled: an admin can archive it (hidden from the list, kept forever).
  */
 export default function PurchaseOrderDetails() {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
   const { data: po, loading, error, refetch } = useFetch(() => getPurchaseOrder(id).then((body) => body.data), [id]);
-  // Which dialog is open: "approve" | "reject" | "cancel" | "receive" | null.
+  // Which dialog is open: "approve" | "reject" | "cancel" | "receive" | "archive" | null.
   const [dialog, setDialog] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -99,6 +101,7 @@ export default function PurchaseOrderDetails() {
   const canApprove = open && isAdmin && po.status === "Requested";
   const canCancel = open && po.status === "Requested" && (isAdmin || isRequester);
   const canReceive = open && po.status === "Approved";
+  const canArchive = open && isAdmin && ["Received", "Rejected", "Cancelled"].includes(po.status);
   const totalUnits = po.items.reduce((sum, item) => sum + item.quantity, 0);
 
   const itemColumns = [
@@ -175,6 +178,16 @@ export default function PurchaseOrderDetails() {
                 Cancel request
               </Button>
             )}
+            {canArchive && (
+              <Button
+                variant="secondary"
+                icon={Archive}
+                onClick={() => setDialog("archive")}
+                className="text-amber-700"
+              >
+                Archive
+              </Button>
+            )}
           </>
         }
       >
@@ -184,6 +197,24 @@ export default function PurchaseOrderDetails() {
           {po.archived && <Badge tone="neutral">Archived</Badge>}
         </div>
       </PageHeader>
+
+      {po.archived && (
+        <div
+          className="mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-600/30"
+          role="status"
+        >
+          <p className="font-semibold">This purchase order is archived.</p>
+          <p>
+            Archived {formatDateTime(po.archivedAt)} by {po.archivedBy?.name ?? "an admin"}
+            {po.archiveReason && `: ${po.archiveReason}`}. It no longer appears in the purchase order list.{" "}
+            {isAdmin && (
+              <Link to="/archive?type=purchase-orders" className="font-semibold underline">
+                Restore it from the Archive page
+              </Link>
+            )}
+          </p>
+        </div>
+      )}
 
       {po.status === "Requested" && !isAdmin && (
         <p className="mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-600/20">
@@ -299,6 +330,16 @@ export default function PurchaseOrderDetails() {
         confirmLabel="Reject"
         loading={busy}
         onConfirm={(reason) => act(() => rejectPurchaseOrder(po._id, reason))}
+        onCancel={() => setDialog(null)}
+      />
+      <ReasonDialog
+        open={dialog === "archive"}
+        title={`Archive ${po.poNumber}?`}
+        message="It will be hidden from the purchase order list. Its items, stock movements and timeline are kept, and an admin can restore it from the Archive page."
+        placeholder="e.g. Filed after the monthly stock count"
+        confirmLabel="Archive"
+        loading={busy}
+        onConfirm={(reason) => act(() => archiveRecord("purchase-orders", po._id, reason))}
         onCancel={() => setDialog(null)}
       />
       <ReasonDialog

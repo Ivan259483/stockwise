@@ -1,17 +1,18 @@
-import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, History, Package, Pencil, Trash2 } from "lucide-react";
+import { Archive, ArrowDownToLine, ArrowLeft, ArrowUpFromLine, History, Package, Pencil } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { deleteProduct, getProduct } from "../api/products";
+import { archiveRecord } from "../api/archive";
+import { getProduct } from "../api/products";
 import StockMovementModal from "../components/forms/StockMovementModal";
 import MovementsTable from "../components/stock/MovementsTable";
 import { StockStatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
 import PageHeader from "../components/ui/PageHeader";
+import ReasonDialog from "../components/ui/ReasonDialog";
 import { PageLoader } from "../components/ui/Spinner";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
@@ -32,7 +33,8 @@ function Detail({ label, children }) {
  *
  * Shows the product, its current stock and its last 20 movements. Stock In and
  * Stock Out are available to staff as well, because recording movements is
- * their main job; Edit and Delete are admin-only (the API enforces the same).
+ * their main job; Edit and Archive are admin-only (the API enforces the same).
+ * An archived product (opened e.g. from old history) shows a banner and no actions.
  */
 export default function ProductDetails() {
   const { id } = useParams();
@@ -41,8 +43,8 @@ export default function ProductDetails() {
   const { data, loading, error, refetch } = useFetch(() => getProduct(id).then((body) => body.data), [id]);
   // Which movement form is open ("IN" / "OUT"); null means closed.
   const [movementType, setMovementType] = useState(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   const backLink = (
     <Link
@@ -78,16 +80,16 @@ export default function ProductDetails() {
 
   const { product, movements } = data;
 
-  // After deleting there is nothing left to show here, so go back to the list.
-  const handleDelete = async () => {
-    setDeleting(true);
+  // After archiving, the product is no longer in the catalogue, so go back to the list.
+  const handleArchive = async (reason) => {
+    setArchiving(true);
     try {
-      await deleteProduct(product._id);
-      toast.success(`"${product.name}" deleted`);
+      await archiveRecord("products", product._id, reason);
+      toast.success(`"${product.name}" archived`);
       navigate("/products", { replace: true });
     } catch {
-      // Error toast comes from the axios interceptor.
-      setDeleting(false);
+      // Error toast comes from the axios interceptor (e.g. the product is on an open PO).
+      setArchiving(false);
     }
   };
 
@@ -97,32 +99,54 @@ export default function ProductDetails() {
         title={product.name}
         description={`SKU ${product.sku}`}
         actions={
-          <>
-            <Button variant="success" icon={ArrowDownToLine} onClick={() => setMovementType("IN")}>
-              Stock in
-            </Button>
-            <Button variant="danger" icon={ArrowUpFromLine} onClick={() => setMovementType("OUT")}>
-              Stock out
-            </Button>
-            {isAdmin && (
-              <>
-                <Button to={`/products/${product._id}/edit`} variant="secondary" icon={Pencil}>
-                  Edit
-                </Button>
-                <Button
-                  variant="secondary"
-                  icon={Trash2}
-                  onClick={() => setConfirmingDelete(true)}
-                  aria-label="Delete product"
-                  className="text-red-600"
-                />
-              </>
-            )}
-          </>
+          !product.archived && (
+            <>
+              <Button variant="success" icon={ArrowDownToLine} onClick={() => setMovementType("IN")}>
+                Stock in
+              </Button>
+              <Button variant="danger" icon={ArrowUpFromLine} onClick={() => setMovementType("OUT")}>
+                Stock out
+              </Button>
+              {isAdmin && (
+                <>
+                  <Button to={`/products/${product._id}/edit`} variant="secondary" icon={Pencil}>
+                    Edit
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={Archive}
+                    onClick={() => setConfirmingArchive(true)}
+                    aria-label="Archive product"
+                    title="Archive product"
+                    className="text-amber-700"
+                  />
+                </>
+              )}
+            </>
+          )
         }
       >
         {backLink}
       </PageHeader>
+
+      {product.archived && (
+        <div
+          className="mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-600/30"
+          role="status"
+        >
+          <p className="font-semibold">This product is archived.</p>
+          <p>
+            Archived {formatDate(product.archivedAt)} by {product.archivedBy?.name ?? "an admin"}
+            {product.archiveReason && `: ${product.archiveReason}`}. It is hidden from the catalogue and cannot be
+            stocked in or out.{" "}
+            {isAdmin && (
+              <Link to="/archive?type=products" className="font-semibold underline">
+                Restore it from the Archive page
+              </Link>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Product information and current stock side by side on large screens */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -137,7 +161,10 @@ export default function ProductDetails() {
             </div>
             <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
               <Detail label="Category">{product.category?.name ?? "—"}</Detail>
-              <Detail label="Supplier">{product.supplier?.name ?? "None"}</Detail>
+              <Detail label="Supplier">
+                {product.supplier?.name ?? "None"}
+                {product.supplier?.archived && <span className="text-slate-500"> (archived)</span>}
+              </Detail>
               <Detail label="Unit">{product.unit}</Detail>
               <Detail label="Cost price">{formatCurrency(product.costPrice)}</Detail>
               <Detail label="Selling price">{formatCurrency(product.sellingPrice)}</Detail>
@@ -218,18 +245,20 @@ export default function ProductDetails() {
         }}
       />
 
-      <ConfirmDialog
-        open={confirmingDelete}
-        title="Delete product?"
+      <ReasonDialog
+        open={confirmingArchive}
+        title="Archive product?"
         message={
           <>
-            <strong className="text-slate-900">{product.name}</strong> will be removed from your catalogue. Its stock
-            movement history is kept for your records.
+            <strong className="text-slate-900">{product.name}</strong> will be hidden from the catalogue, stock forms
+            and purchase orders. Its history is kept and an admin can restore it from the Archive page.
           </>
         }
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmingDelete(false)}
+        placeholder="e.g. Discontinued by the supplier"
+        confirmLabel="Archive"
+        loading={archiving}
+        onConfirm={handleArchive}
+        onCancel={() => setConfirmingArchive(false)}
       />
     </>
   );

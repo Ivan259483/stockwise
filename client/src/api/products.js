@@ -14,6 +14,3 @@ export const createProduct = (data) => api.post("/products", data).then((res) =>
 
 /** @param {string} id @param {object} data */
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data).then((res) => res.data);
-
-/** @param {string} id */
-export const deleteProduct = (id) => api.delete(`/products/${id}`).then((res) => res.data);

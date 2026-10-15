@@ -23,6 +23,7 @@ const Users = lazy(() => import("./pages/Users"));
 const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
 const PurchaseOrderForm = lazy(() => import("./pages/PurchaseOrderForm"));
 const PurchaseOrderDetails = lazy(() => import("./pages/PurchaseOrderDetails"));
+const Archive = lazy(() => import("./pages/Archive"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
@@ -30,7 +31,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
  * - public (signed-out only): /login, /register, /forgot-password, /reset-password
  * - any signed-in user: dashboard, products (read), product details, movements, purchase orders,
  *   categories, suppliers, profile
- * - admin only: product create/edit, users
+ * - admin only: product create/edit, users, archive
  */
 export default function App() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/:id/edit" element={<ProductForm />} />
               <Route path="users" element={<Users />} />
+              <Route path="archive" element={<Archive />} />
             </Route>
           </Route>
         </Route>

@@ -1,18 +1,19 @@
-import { Eye, FilterX, PackageSearch, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Archive, Eye, FilterX, PackageSearch, Pencil, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { getCategories } from "../api/categories";
-import { deleteProduct, getProducts } from "../api/products";
+import { archiveRecord } from "../api/archive";
+import { getProducts } from "../api/products";
 import { StockStatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
 import Input from "../components/ui/Input";
 import PageHeader from "../components/ui/PageHeader";
 import Pagination from "../components/ui/Pagination";
+import ReasonDialog from "../components/ui/ReasonDialog";
 import Select from "../components/ui/Select";
 import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
@@ -26,7 +27,8 @@ const PAGE_SIZE = 10;
 const DEFAULT_FILTERS = { search: "", category: "", status: "", sort: "name", page: "1" };
 
 /**
- * Product catalog page (all roles; add, edit and delete for admins only).
+ * Product catalog page (all roles; add, edit and archive for admins only).
+ * Archived products are not listed here; admins find them on the Archive page.
  *
  * Filters, sort and page live in the URL query string, so a refresh keeps them
  * and the dashboard can link straight to e.g. ?status=low_stock. The search box
@@ -39,8 +41,8 @@ export default function Products() {
   // The input keeps its own text; only the debounced value is written to the URL.
   const [searchText, setSearchText] = useState(filters.search);
   const debouncedSearch = useDebounce(searchText.trim(), 300);
-  const [toDelete, setToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [toArchive, setToArchive] = useState(null);
+  const [archiving, setArchiving] = useState(false);
 
   // Push the debounced search text into the URL (which triggers the fetch).
   useEffect(() => {
@@ -62,19 +64,19 @@ export default function Products() {
     setFilters({ search: "", category: "", status: "" });
   };
 
-  const confirmDelete = async () => {
-    setDeleting(true);
+  const confirmArchive = async (reason) => {
+    setArchiving(true);
     try {
-      await deleteProduct(toDelete._id);
-      toast.success(`"${toDelete.name}" deleted`);
-      setToDelete(null);
+      await archiveRecord("products", toArchive._id, reason);
+      toast.success(`"${toArchive.name}" archived`);
+      setToArchive(null);
       // Step back a page if we just removed the last item on this page.
       if (products.length === 1 && data.page > 1) setFilters({ page: data.page - 1 });
       else refetch();
     } catch {
-      // The API error is already shown as a toast by the axios interceptor.
+      // The API error (e.g. "on open purchase orders") is shown as a toast by the axios interceptor.
     } finally {
-      setDeleting(false);
+      setArchiving(false);
     }
   };
 
@@ -100,10 +102,10 @@ export default function Products() {
           <Button
             variant="ghost"
             size="icon"
-            icon={Trash2}
-            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-            onClick={() => setToDelete(product)}
-            aria-label={`Delete ${product.name}`}
+            icon={Archive}
+            className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => setToArchive(product)}
+            aria-label={`Archive ${product.name}`}
           />
         </>
       )}
@@ -268,19 +270,21 @@ export default function Products() {
         )}
       </Card>
 
-      {/* Deleting cannot be undone, so it always asks first */}
-      <ConfirmDialog
-        open={Boolean(toDelete)}
-        title="Delete product?"
+      {/* Archiving hides the product everywhere but keeps it (and its history); it can be restored */}
+      <ReasonDialog
+        open={Boolean(toArchive)}
+        title="Archive product?"
         message={
           <>
-            <strong className="text-slate-900">{toDelete?.name}</strong> will be removed from your catalogue. Its stock
-            movement history is kept for your records.
+            <strong className="text-slate-900">{toArchive?.name}</strong> will be hidden from the catalogue, stock forms
+            and purchase orders. Its history is kept and an admin can restore it from the Archive page.
           </>
         }
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setToDelete(null)}
+        placeholder="e.g. Discontinued by the supplier"
+        confirmLabel="Archive"
+        loading={archiving}
+        onConfirm={confirmArchive}
+        onCancel={() => setToArchive(null)}
       />
     </>
   );

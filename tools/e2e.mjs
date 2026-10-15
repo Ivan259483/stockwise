@@ -320,7 +320,7 @@ const run = async () => {
   });
 
   // ---------------------------------------------------------------- Suppliers
-  await step("Supplier validation, create and delete", async () => {
+  await step("Supplier validation, create and archive (with a reason)", async () => {
     await open("/suppliers");
     await clickText(page, "Add supplier");
     await fill(page, '[role="dialog"] input[name="name"]', SUPPLIER_NAME);
@@ -330,9 +330,20 @@ const run = async () => {
     await fill(page, '[role="dialog"] input[name="email"]', "e2e@example.com");
     await clickText(page, "Add supplier", '[role="dialog"] button[type="submit"]');
     await waitForText(page, "Supplier created");
-    await clickText(page, `Delete ${SUPPLIER_NAME}`);
-    await clickText(page, "Delete", '[role="dialog"] button');
-    await waitForText(page, `"${SUPPLIER_NAME}" deleted`);
+    await clickText(page, `Archive ${SUPPLIER_NAME}`);
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Reason is required");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E test supplier");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `"${SUPPLIER_NAME}" archived`);
+    await waitForNoText(page, SUPPLIER_NAME);
+  });
+
+  await step("Archived supplier is not offered in the purchase order form", async () => {
+    await open("/purchase-orders/new");
+    await page.waitForSelector('select[name="supplier"]');
+    const options = await page.$eval('select[name="supplier"]', (s) => [...s.options].map((o) => o.text));
+    assert(!options.some((text) => text.includes(SUPPLIER_NAME)), "archived supplier appears in the dropdown");
   });
 
   // ---------------------------------------------------------------- Users
@@ -394,15 +405,26 @@ const run = async () => {
     await waitForText(page, "Mark as received");
   });
 
+  await step("Archiving a product on an open PO is blocked", async () => {
+    await open("/products?search=Claw");
+    await clickText(page, "Archive Claw Hammer");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Should be blocked");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `it is on open purchase order(s) ${poNumber}`);
+    await clickText(page, "Cancel", '[role="dialog"] button');
+  });
+
   await step("PO list status tabs filter by status", async () => {
     await open("/purchase-orders");
     await clickText(page, "Approved", '[role="tab"]');
     await page.waitForFunction(() => location.search.includes("status=Approved"));
     await waitForText(page, poNumber);
-    const rows = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => tr.innerText));
-    assert(
-      rows.every((text) => text.includes("Approved")),
-      "non-approved PO in the Approved tab"
+    await page.waitForFunction(
+      () => {
+        const rows = [...document.querySelectorAll("table tbody tr")].map((tr) => tr.innerText);
+        return rows.length > 0 && rows.every((text) => text.includes("Approved"));
+      },
+      { timeout: 15000 }
     );
   });
 
@@ -441,12 +463,59 @@ const run = async () => {
   });
 
   // ---------------------------------------------------------------- Cleanup as admin
-  await step("Admin deletes the test product", async () => {
+  await step("Admin archives a user, who then disappears from the Users list", async () => {
+    await open("/users");
+    await clickText(page, `Archive ${NEW_USER_NAME}`);
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Left the company");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `${NEW_USER_NAME}'s account was archived`);
+    await waitForNoText(page, NEW_USER_EMAIL);
+    const ownArchiveDisabled = await page.$eval('button[aria-label="Archive Admin User"]', (b) => b.disabled);
+    assert(ownArchiveDisabled, "admin can archive their own account");
+  });
+
+  await step("Admin archives the test product: hidden from search, banner on its page", async () => {
     await open(productUrl);
-    await clickText(page, "Delete product");
-    await clickText(page, "Delete", '[role="dialog"] button');
+    await clickText(page, "Archive product");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E cleanup");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
     await page.waitForFunction(() => location.pathname === "/products", { timeout: 15000 });
-    await waitForText(page, "deleted");
+    await waitForText(page, "archived");
+    await open(`/products?search=${SKU}`);
+    await waitForText(page, "No matching products");
+    await open(productUrl);
+    await waitForText(page, "This product is archived.");
+    const stockButtons = await page.$$eval(
+      "main button",
+      (buttons) => buttons.filter((b) => /^Stock (in|out)$/.test(b.innerText.trim())).length
+    );
+    assert(stockButtons === 0, "stock in/out buttons shown for an archived product");
+  });
+
+  await step("Archive page: view and restore the product, then archive it again", async () => {
+    await open("/archive");
+    await waitForText(page, PRODUCT_NAME);
+    await waitForText(page, "E2E cleanup");
+    await clickText(page, `View ${PRODUCT_NAME}`);
+    await waitForText(page, "Archive history");
+    await clickText(page, "Restore", '[role="dialog"] button');
+    await waitForText(page, `Restore ${PRODUCT_NAME}?`);
+    await clickText(page, "Restore", '[role="dialog"] button');
+    await waitForText(page, `${PRODUCT_NAME} restored`);
+    await open(`/products?search=${SKU}`);
+    await waitForText(page, "1 product found");
+    await clickText(page, `Archive ${PRODUCT_NAME}`);
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E cleanup");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "No matching products");
+  });
+
+  await step("Archive page tabs list archived users and suppliers", async () => {
+    await open("/archive?type=users");
+    await waitForText(page, NEW_USER_NAME);
+    await waitForText(page, "Left the company");
+    await clickText(page, "Suppliers", '[role="tab"]');
+    await waitForText(page, SUPPLIER_NAME);
   });
 
   // ---------------------------------------------------------------- Staff
@@ -559,6 +628,35 @@ const run = async () => {
     await page.evaluate(() => localStorage.setItem("stockwise_token", "invalid.token.value"));
     await open("/products");
     await page.waitForFunction(() => location.pathname === "/login", { timeout: 15000 });
+  });
+
+  await step("An archived user cannot log in", async () => {
+    await resetSession(page, BASE_URL);
+    await open("/login");
+    await fill(page, 'input[name="email"]', NEW_USER_EMAIL);
+    await fill(page, 'input[name="password"]', "Temp1234");
+    await clickText(page, "Sign in", 'button[type="submit"]');
+    await waitForText(page, "This account has been archived");
+  });
+
+  await step("Admin archives the cancelled PO; it moves to the Archive page", async () => {
+    await login(page, BASE_URL, ...ADMIN);
+    await open("/purchase-orders?status=Cancelled");
+    await waitForText(page, "Cebu Builders");
+    await page.evaluate(() =>
+      [...document.querySelectorAll("table a")].find((a) => a.innerText.startsWith("PO-")).click()
+    );
+    await waitForText(page, "Cancelled by");
+    const cancelledPo = await page.$eval("h1", (el) => el.innerText.trim());
+    await clickText(page, "Archive", "main button");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Duplicate request");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "This purchase order is archived.");
+    await waitForText(page, "Archived by");
+    await open(`/purchase-orders?search=${cancelledPo}`);
+    await waitForText(page, "No purchase orders match");
+    await open("/archive?type=purchase-orders");
+    await waitForText(page, cancelledPo);
   });
 
   await step("Unknown URL shows the 404 page", async () => {
