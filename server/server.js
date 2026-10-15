@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import mongoose from "mongoose";
 import morgan from "morgan";
 import connectDB from "./config/db.js";
 import dbConnect from "./middleware/dbConnect.js";
@@ -55,11 +56,20 @@ app.get("/", (_req, res) => {
 
 app.use("/api", dbConnect);
 
-/** Health check. Runs after dbConnect, so a 200 also confirms the database is reachable. */
+/**
+ * Health check. Runs after dbConnect, so a 200 also confirms the database is reachable.
+ * Outside production it also names the database, which the automated tests use
+ * to refuse to run against anything other than a *_test database.
+ */
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
-    data: { status: "ok", database: "connected", environment: process.env.NODE_ENV ?? "development" },
+    data: {
+      status: "ok",
+      database: "connected",
+      environment: process.env.NODE_ENV ?? "development",
+      ...(isProduction ? {} : { databaseName: mongoose.connection.name }),
+    },
   });
 });
 

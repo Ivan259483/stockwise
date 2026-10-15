@@ -10,7 +10,8 @@
     "e2e": "node e2e.mjs",
     "screenshots": "node screenshots.mjs",
     "diagrams": "mmdc -i ../docs/diagrams/architecture.mmd -o ../docs/diagrams/architecture.png -c mermaid-config.json -p puppeteer-config.json -b white -s 2 -q && for d in erd-1-catalog erd-2-stock-history; do mmdc -i ../docs/diagrams/$d.mmd -o ../docs/diagrams/$d.png -c mermaid-er-config.json -p puppeteer-config.json -b white -s 2 -q; done",
-    "docs": "node build-docs.mjs"
+    "docs": "node build-docs.mjs",
+    "test": "node run-tests.mjs"
   },
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "^12.0.0",

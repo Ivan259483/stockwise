@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Test environment: local throwaway database only, no secrets
+!server/.env.test
 
 # Build output
 dist/
@@ -23,3 +25,6 @@ npm-debug.log*
 # Vercel / Render local state
 .vercel/
 e2e-failures/
+
+# Test mail outbox (NODE_ENV=test)
+server/tmp/
