@@ -61,7 +61,7 @@ const USERS = [
   ["paolo", "Paolo Navarro", demo("paolo.navarro"), "staff", "sales"],
   ["ivan", "Ivan Tadena", PRESENTER_EMAIL, "staff", "sales"],
   // Archived below (resigned), so the Archive page has a user to show.
-  ["ramil", "Ramil Ocampo", demo("ramil.ocampo"), "staff", "sales"],
+  ["ramil", "Ramil Ocampo", demo("ramil.ocampo"), "staff", "former"],
 ];
 const PASSWORDS = { admin: "Admin123!", staff: "Staff123!" };
 
@@ -180,6 +180,8 @@ const PRODUCTS = [
   ["Incandescent Bulb 60W", "EL-INC-060", 2, "bulacan", "pcs", 22, 35, 10, 20, 0.4, 30],
   ['Galvanized Pipe 1/2" x 6 m', "PL-GIP-050", 3, "bulacan", "pcs", 310, 420, 4, 6, 0.1, 6],
 ];
+/** Ramil Ocampo's last working day (days ago); his account is archived the day after. */
+const RAMIL_LAST_DAY = 13;
 /** Day (days ago) when the Bulacan supplier and its products were archived. */
 const ARCHIVE_DAY = 20;
 const ARCHIVED_SKUS = ["EL-INC-060", "PL-GIP-050"];
@@ -343,6 +345,10 @@ const simulate = ({ userBy, supplierBy, productBy }) => {
       if (ARCHIVED_SKUS.includes(sku) && day <= ARCHIVE_DAY) continue;
       let units = 0;
       for (let i = 0; i < 3; i += 1) units += random() < 0.5 ? Math.round(daily * between(0.3, 1.4)) : 0;
+      // Demo items sell faster in the last 5 days so they end low or out of stock.
+      if (sku in DEMO_LOW_STOCK && day <= 4) {
+        units = Math.max(units, Math.ceil((stock.get(sku) - DEMO_LOW_STOCK[sku]) / (day + 1)));
+      }
       if (units > 0) sales.push([sku, units]);
     }
     sales
@@ -352,7 +358,8 @@ const simulate = ({ userBy, supplierBy, productBy }) => {
       .forEach(({ sku, units, hour }) => {
         const quantity = Math.min(units, stock.get(sku));
         if (quantity <= 0) return;
-        const seller = day > 12 && random() < 0.15 ? userBy.ramil : pick(cashiers);
+        // Ramil (archived later) made sales until his last working day.
+        const seller = day > RAMIL_LAST_DAY && random() < 0.15 ? userBy.ramil : pick(cashiers);
         move({
           sku,
           type: "OUT",
@@ -363,6 +370,17 @@ const simulate = ({ userBy, supplierBy, productBy }) => {
           time: at(day, hour),
         });
       });
+
+    // Before the Bulacan products are archived, the leftover stock is returned to the supplier.
+    if (day === ARCHIVE_DAY) {
+      for (const sku of ARCHIVED_SKUS) {
+        const quantity = stock.get(sku);
+        if (quantity > 0) {
+          const note = "Leftover stock returned to Bulacan Hardware Wholesale before archiving";
+          move({ sku, type: "OUT", quantity, reason: "Other", note, user: userBy.rodel, time: at(day, 16) });
+        }
+      }
+    }
 
     // Occasional damaged stock found during the weekly count.
     if (day % 7 === 3 && day > 0) {
@@ -398,7 +416,7 @@ const simulate = ({ userBy, supplierBy, productBy }) => {
     }
   }
 
-  // 4. Bring the demo items to their planned low/out-of-stock level with one last sale today.
+  // 4. Top up: if today's sale for a demo item fell after the current time, sell the rest now.
   for (const [sku, target] of Object.entries(DEMO_LOW_STOCK)) {
     const excess = stock.get(sku) - target;
     if (excess > 0) {
@@ -686,7 +704,13 @@ const seed = async () => {
   );
   await User.updateOne(
     { _id: userBy.ramil._id },
-    { $set: archived(userBy.maricel, at(12, 17), "Resigned; last working day was September 30") },
+    {
+      $set: archived(
+        userBy.maricel,
+        at(RAMIL_LAST_DAY - 1, 9),
+        `Resigned; last working day was ${at(RAMIL_LAST_DAY, 12).toLocaleDateString("en-PH", { month: "long", day: "numeric", timeZone: "Asia/Manila" })}`
+      ),
+    },
     { timestamps: false }
   );
 

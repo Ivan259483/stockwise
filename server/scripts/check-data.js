@@ -52,7 +52,7 @@ const run = async () => {
 
   // ------------------------------------------------------------ Counts
   const [users, categories, suppliers, products, movements, orders] = await Promise.all([
-    User.find().select("name email role isActive archived"),
+    User.find().select("name email role isActive archived archivedAt"),
     Category.find().select("name description"),
     Supplier.find().select("name contactPerson email archived"),
     Product.find().select("name sku quantity reorderLevel costPrice sellingPrice archived"),
@@ -156,6 +156,16 @@ const run = async () => {
   });
   if (openWithArchived) problems.push(`${openWithArchived} open PO(s) include archived products`);
   console.log(`  ${openWithArchived ? "FAIL" : "PASS"}  No open PO contains an archived product`);
+
+  const lateActivity = await StockMovement.aggregate([
+    { $lookup: { from: User.collection.name, localField: "performedBy", foreignField: "_id", as: "user" } },
+    { $unwind: "$user" },
+    { $match: { "user.archived": true, $expr: { $gt: ["$createdAt", "$user.archivedAt"] } } },
+    { $count: "n" },
+  ]);
+  const late = lateActivity[0]?.n ?? 0;
+  if (late) problems.push(`${late} stock movement(s) were recorded by users after they were archived`);
+  console.log(`  ${late ? "FAIL" : "PASS"}  No activity by users after they were archived`);
 
   // ------------------------------------------------------------ Test / dummy data
   for (const u of users) {
