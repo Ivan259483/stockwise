@@ -15,6 +15,7 @@ import connectDB from "./config/db.js";
 import dbConnect from "./middleware/dbConnect.js";
 import errorHandler from "./middleware/errorHandler.js";
 import notFound from "./middleware/notFound.js";
+import archiveRoutes from "./routes/archiveRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
@@ -82,6 +83,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/archive", archiveRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

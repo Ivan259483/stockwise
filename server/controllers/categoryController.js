@@ -1,5 +1,6 @@
 import Category from "../models/Category.js";
 import Product from "../models/Product.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { pick } from "../utils/helpers.js";
@@ -18,7 +19,7 @@ export const getCategories = asyncHandler(async (_req, res) => {
         from: Product.collection.name,
         localField: "_id",
         foreignField: "category",
-        pipeline: [{ $project: { _id: 1 } }],
+        pipeline: [{ $match: ACTIVE_FILTER }, { $project: { _id: 1 } }],
         as: "products",
       },
     },
@@ -50,16 +51,21 @@ export const updateCategory = asyncHandler(async (req, res) => {
 /**
  * DELETE /api/categories/:id (admin)
  * Refuses with 409 while products still reference the category, because a
- * product must always belong to a category.
+ * product must always belong to a category. Archived products count too, so
+ * restoring one never leaves it without a category.
  */
 export const deleteCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
   if (!category) throw ApiError.notFound("Category not found");
 
-  const productCount = await Product.countDocuments({ category: category._id });
-  if (productCount > 0) {
+  const [productCount, archivedCount] = await Promise.all([
+    Product.countDocuments({ category: category._id, ...ACTIVE_FILTER }),
+    Product.countDocuments({ category: category._id, archived: true }),
+  ]);
+  if (productCount + archivedCount > 0) {
+    const archivedNote = archivedCount ? ` (${archivedCount} of them archived)` : "";
     throw ApiError.conflict(
-      `Cannot delete "${category.name}": ${productCount} product(s) still use this category. Move or delete them first.`
+      `Cannot delete "${category.name}": ${productCount + archivedCount} product(s)${archivedNote} still use this category. Move them to another category first.`
     );
   }
 

@@ -1,11 +1,12 @@
 import User from "../models/User.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { pick } from "../utils/helpers.js";
 
-/** GET /api/users: all accounts, newest first (admin only). */
+/** GET /api/users: active (not archived) accounts, newest first (admin only). */
 export const getUsers = asyncHandler(async (_req, res) => {
-  const users = await User.find().sort({ createdAt: -1 });
+  const users = await User.find(ACTIVE_FILTER).sort({ createdAt: -1 });
   res.json({ success: true, data: users });
 });
 
@@ -33,21 +34,10 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
+  if (user.archived) throw ApiError.conflict("Archived users cannot be edited. Restore the account first.");
 
   user.set(updates);
   await user.save();
 
   res.json({ success: true, data: user, message: "User updated" });
-});
-
-/** DELETE /api/users/:id (admin only, never yourself). */
-export const deleteUser = asyncHandler(async (req, res) => {
-  if (req.params.id === req.user.id) {
-    throw ApiError.badRequest("You cannot delete your own account");
-  }
-
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) throw ApiError.notFound("User not found");
-
-  res.json({ success: true, data: { _id: user._id }, message: "User deleted" });
 });

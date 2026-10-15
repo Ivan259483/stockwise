@@ -13,9 +13,10 @@ import {
   receivePurchaseOrder,
   rejectPurchaseOrder,
 } from "../controllers/purchaseOrderController.js";
+import { archiveRecord, restoreRecord } from "../controllers/archiveController.js";
 import { authorize, protect } from "../middleware/auth.js";
 import validate from "../middleware/validate.js";
-import { idParamRules } from "../validators/common.js";
+import { archiveRules, idParamRules } from "../validators/common.js";
 import {
   cancelRules,
   createPurchaseOrderRules,
@@ -33,5 +34,8 @@ router.patch("/:id/approve", authorize("admin"), validate(noteRules), approvePur
 router.patch("/:id/reject", authorize("admin"), validate(rejectRules), rejectPurchaseOrder);
 router.patch("/:id/cancel", validate(cancelRules), cancelPurchaseOrder);
 router.patch("/:id/receive", validate(noteRules), receivePurchaseOrder);
+// Only closed POs (Received, Rejected, Cancelled) can be archived.
+router.patch("/:id/archive", authorize("admin"), validate(archiveRules), archiveRecord("purchase-orders"));
+router.patch("/:id/restore", authorize("admin"), validate(idParamRules), restoreRecord("purchase-orders"));
 
 export default router;

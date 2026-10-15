@@ -3,7 +3,8 @@
  *
  * Exercises authentication, account management, password recovery, CRUD,
  * stock in/out and the main error paths, and prints PASS/FAIL per check. It
- * creates its own temporary records (category, supplier, product, user).
+ * creates its own temporary records (category, supplier, product, user, POs)
+ * and archives them at the end (nothing is hard-deleted any more).
  *
  * It only runs against the TEST API (server started with `npm run dev:test`,
  * database "stockwise_test" seeded with `npm run seed:test`): it aborts if the
@@ -106,6 +107,7 @@ const run = async () => {
     Boolean(b.data.token && b.data.user.role === "admin" && b.data.user.password === undefined)
   );
   const adminToken = adminLogin?.data?.token;
+  const adminId = adminLogin?.data?.user?._id;
   const staffLogin = check("Staff login", await request("POST", "/auth/login", { body: STAFF }), 200);
   // Replaced after the password-change checks, which sign out the old token.
   let staffToken = staffLogin?.data?.token;
@@ -283,12 +285,12 @@ const run = async () => {
     200,
     (b) => b.data.name === "New Admin" && b.data.role === "admin"
   );
-  check(
+  const newUserToken = check(
     "New user can log in with the temporary password",
     await request("POST", "/auth/login", { body: { email: newUserEmail, password: "Temp1234" } }),
     200,
     (b) => b.data.user.role === "admin"
-  );
+  )?.data?.token;
 
   // --- Categories CRUD -----------------------------------------------------
   const category = check(
@@ -621,7 +623,6 @@ const run = async () => {
     await request("DELETE", `/categories/${category?._id}`, { token: adminToken }),
     409
   );
-  const adminId = adminLogin?.data?.user?._id;
   check(
     "Admin demoting themselves → 400",
     await request("PATCH", `/users/${adminId}`, { token: adminToken, body: { role: "staff" } }),
@@ -629,18 +630,194 @@ const run = async () => {
   );
   check("Admin listing users", await request("GET", "/users", { token: adminToken }), 200);
 
-  // --- Cleanup (also verifies the delete endpoints) ------------------------
+  // --- Archive module ------------------------------------------------------
+  const openPo = check(
+    "Staff requests a PO to test the archive rules",
+    await request("POST", "/purchase-orders", {
+      token: staffToken,
+      body: { supplier: supplier?._id, items: [{ product: product?._id, quantity: 1, unitCost: 95 }] },
+    }),
+    201
+  )?.data;
   check(
-    "Delete supplier (unsets it on products)",
-    await request("DELETE", `/suppliers/${supplier?._id}`, { token: adminToken }),
-    200,
-    (b) => b.data.productsUpdated === 1
+    "Archiving a product on an open PO → 409",
+    await request("PATCH", `/products/${product?._id}/archive`, {
+      token: adminToken,
+      body: { reason: "Discontinued" },
+    }),
+    409,
+    (b) => b.message.includes(openPo?.poNumber)
   );
-  check("Delete product", await request("DELETE", `/products/${product?._id}`, { token: adminToken }), 200);
   check(
-    "Delete category (now empty)",
-    await request("DELETE", `/categories/${category?._id}`, { token: adminToken }),
+    "Archiving a supplier with an open PO → 409",
+    await request("PATCH", `/suppliers/${supplier?._id}/archive`, { token: adminToken, body: { reason: "Closed" } }),
+    409
+  );
+  check(
+    "Archiving an open (Requested) PO → 409",
+    await request("PATCH", `/purchase-orders/${openPo?._id}/archive`, { token: adminToken, body: { reason: "Old" } }),
+    409
+  );
+  await request("PATCH", `/purchase-orders/${openPo?._id}/cancel`, { token: staffToken });
+  check(
+    "Archive without a reason → 400",
+    await request("PATCH", `/products/${product?._id}/archive`, { token: adminToken, body: {} }),
+    400,
+    (b) => b.errors[0].field === "reason"
+  );
+  check(
+    "Staff archiving a product → 403",
+    await request("PATCH", `/products/${product?._id}/archive`, { token: staffToken, body: { reason: "x" } }),
+    403
+  );
+  check(
+    "Admin archives the product (no open POs left)",
+    await request("PATCH", `/products/${product?._id}/archive`, {
+      token: adminToken,
+      body: { reason: "Discontinued by supplier" },
+    }),
+    200,
+    (b) => b.data.archived === true && b.data.archiveReason === "Discontinued by supplier" && Boolean(b.data.archivedAt)
+  );
+  check(
+    "Archiving twice → 409",
+    await request("PATCH", `/products/${product?._id}/archive`, { token: adminToken, body: { reason: "Again" } }),
+    409
+  );
+  check(
+    "Archived product is hidden from product search",
+    await request("GET", `/products?search=${sku}`, { token: staffToken }),
+    200,
+    (b) => b.total === 0
+  );
+  check(
+    "Archived product cannot be stocked in → 409",
+    await request("POST", "/stock/in", {
+      token: staffToken,
+      body: { productId: product?._id, quantity: 1, reason: "Purchase" },
+    }),
+    409
+  );
+  check(
+    "Archived product cannot be put on a PO → 400",
+    await request("POST", "/purchase-orders", {
+      token: staffToken,
+      body: { supplier: supplier?._id, items: [{ product: product?._id, quantity: 1, unitCost: 1 }] },
+    }),
+    400
+  );
+  check(
+    "New product with an archived product's SKU → 409 explains",
+    await request("POST", "/products", { token: adminToken, body: { name: "Copy", sku, category: category?._id } }),
+    409,
+    (b) => b.message.includes("archived product")
+  );
+  check(
+    "Movement history of the archived product is kept",
+    await request("GET", `/stock/movements?product=${product?._id}`, { token: staffToken }),
+    200,
+    (b) => b.total >= 3
+  );
+  check(
+    "Archive page lists the product with who archived it",
+    await request("GET", "/archive/products", { token: adminToken }),
+    200,
+    (b) => b.data.some((p) => p._id === product?._id && p.archivedBy?.name === "Admin User") && b.counts.products >= 1
+  );
+  check(
+    "Staff opening the Archive page API → 403",
+    await request("GET", "/archive/products", { token: staffToken }),
+    403
+  );
+  check("Unknown archive type → 404", await request("GET", "/archive/widgets", { token: adminToken }), 404);
+  check(
+    "Admin restores the product",
+    await request("PATCH", `/products/${product?._id}/restore`, { token: adminToken }),
+    200,
+    (b) => b.data.archived === false && b.data.archiveLog.map((e) => e.action).join(",") === "Archived,Restored"
+  );
+  check(
+    "Restored product is back in search",
+    await request("GET", `/products?search=${sku}`, { token: staffToken }),
+    200,
+    (b) => b.total === 1
+  );
+  check(
+    "Admin archives the supplier",
+    await request("PATCH", `/suppliers/${supplier?._id}/archive`, {
+      token: adminToken,
+      body: { reason: "Closed shop" },
+    }),
     200
+  );
+  check(
+    "Archived supplier is hidden from the supplier list (dropdowns)",
+    await request("GET", "/suppliers", { token: staffToken }),
+    200,
+    (b) => !b.data.some((x) => x._id === supplier?._id)
+  );
+  check(
+    "New product with an archived supplier → 400",
+    await request("POST", "/products", {
+      token: adminToken,
+      body: { name: "Y", sku: `Y-${suffix}`, category: category?._id, supplier: supplier?._id },
+    }),
+    400,
+    (b) => b.errors[0].field === "supplier"
+  );
+  check(
+    "Admin archives a received PO",
+    await request("PATCH", `/purchase-orders/${po?._id}/archive`, { token: adminToken, body: { reason: "Filed" } }),
+    200
+  );
+  check(
+    "Archived PO is hidden from the PO list and its timeline shows Archived",
+    await request("GET", `/purchase-orders?search=${po?.poNumber}`, { token: adminToken }),
+    200,
+    (b) => b.total === 0
+  );
+  check(
+    "Archived PO details keep the full timeline",
+    await request("GET", `/purchase-orders/${po?._id}`, { token: adminToken }),
+    200,
+    (b) => b.data.archived && b.data.history.at(-1).action === "Archived" && b.data.archivedBy.name === "Admin User"
+  );
+  check(
+    "Admin archiving their own account → 400",
+    await request("PATCH", `/users/${adminId}/archive`, { token: adminToken, body: { reason: "Test" } }),
+    400
+  );
+  check(
+    "Admin archives a user",
+    await request("PATCH", `/users/${newUser?._id}/archive`, { token: adminToken, body: { reason: "Resigned" } }),
+    200
+  );
+  check(
+    "Archived user cannot log in → 403",
+    await request("POST", "/auth/login", { body: { email: newUserEmail, password: "Temp1234" } }),
+    403,
+    (b) => b.message.includes("archived")
+  );
+  check("Archived user's existing token → 401", await request("GET", "/auth/me", { token: newUserToken }), 401);
+  check(
+    "Archived user is hidden from the Users list",
+    await request("GET", "/users", { token: adminToken }),
+    200,
+    (b) => !b.data.some((u) => u._id === newUser?._id)
+  );
+  check(
+    "Hard delete endpoints are gone (DELETE product → 404)",
+    await request("DELETE", `/products/${product?._id}`, { token: adminToken }),
+    404
+  );
+  check(
+    "Category used only by archived products still cannot be deleted → 409",
+    await request("PATCH", `/products/${product?._id}/archive`, {
+      token: adminToken,
+      body: { reason: "Cleanup" },
+    }).then(() => request("DELETE", `/categories/${category?._id}`, { token: adminToken })),
+    409,
+    (b) => b.message.includes("archived")
   );
 
   const failed = results.filter((r) => !r.passed).length;

@@ -2,6 +2,7 @@ import Category from "../models/Category.js";
 import Product from "../models/Product.js";
 import PurchaseOrder from "../models/PurchaseOrder.js";
 import StockMovement from "../models/StockMovement.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { APP_TIMEZONE, PO_STATUSES } from "../utils/constants.js";
 import { DAY_MS, startOfLocalDay, toLocalDateString } from "../utils/dates.js";
@@ -14,6 +15,7 @@ const VALUE_EXPR = { $multiply: ["$quantity", "$costPrice"] };
 /** Totals for the stat cards, computed in one pass over the products. */
 const getTotals = async () => {
   const [totals] = await Product.aggregate([
+    { $match: ACTIVE_FILTER },
     {
       $group: {
         _id: null,
@@ -39,6 +41,7 @@ const getTotals = async () => {
 /** Stock value grouped by category, highest first (bar chart). */
 const getValueByCategory = () =>
   Product.aggregate([
+    { $match: ACTIVE_FILTER },
     { $group: { _id: "$category", value: { $sum: VALUE_EXPR }, units: { $sum: "$quantity" }, products: { $sum: 1 } } },
     { $lookup: { from: Category.collection.name, localField: "_id", foreignField: "_id", as: "category" } },
     { $unwind: "$category" },
@@ -89,10 +92,7 @@ const getMovementsByDay = async () => {
  */
 const getPurchaseOrderStats = async () => {
   const [rows, [received]] = await Promise.all([
-    PurchaseOrder.aggregate([
-      { $match: { archived: { $ne: true } } },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]),
+    PurchaseOrder.aggregate([{ $match: ACTIVE_FILTER }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
     PurchaseOrder.aggregate([
       { $match: { status: "Received", receivedAt: { $gte: startOfLocalDay(29) } } },
       { $group: { _id: null, value: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
@@ -112,7 +112,7 @@ export const getSummary = asyncHandler(async (_req, res) => {
   const [totals, lowStockItems, recentMovements, valueByCategory, movementsByDay, purchaseOrders] = await Promise.all([
     getTotals(),
     // Out-of-stock items come first because they are the most urgent to restock.
-    Product.find({ $expr: { $lte: ["$quantity", "$reorderLevel"] } })
+    Product.find({ ...ACTIVE_FILTER, $expr: { $lte: ["$quantity", "$reorderLevel"] } })
       .select("name sku quantity reorderLevel unit costPrice")
       .sort({ quantity: 1, name: 1 })
       .limit(5),

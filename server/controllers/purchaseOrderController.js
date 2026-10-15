@@ -3,6 +3,7 @@ import Counter from "../models/Counter.js";
 import Product from "../models/Product.js";
 import PurchaseOrder from "../models/PurchaseOrder.js";
 import Supplier from "../models/Supplier.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import { revertStockIns, stockIn } from "../services/stockService.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -10,10 +11,10 @@ import { PO_STATUSES } from "../utils/constants.js";
 import { toLocalDateString } from "../utils/dates.js";
 import { escapeRegex, getPagination, paginated } from "../utils/helpers.js";
 
-const ACTIVE = { archived: { $ne: true } };
+const ACTIVE = ACTIVE_FILTER;
 
 /** User fields shown for every person on a PO. */
-const PEOPLE = ["requestedBy", "approvedBy", "rejectedBy", "receivedBy", "cancelledBy"];
+const PEOPLE = ["requestedBy", "approvedBy", "rejectedBy", "receivedBy", "cancelledBy", "archivedBy"];
 
 /** Loads one PO with everything the details page needs. */
 const findDetailed = (id) =>

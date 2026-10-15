@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import archivable from "./plugins/archivable.js";
 import { MAX_IMAGE_BYTES, UNITS } from "../utils/constants.js";
 
 /**
@@ -107,5 +108,7 @@ productSchema.virtual("stockStatus").get(function stockStatus() {
 productSchema.virtual("stockValue").get(function stockValue() {
   return Math.round(this.quantity * this.costPrice * 100) / 100;
 });
+
+productSchema.plugin(archivable);
 
 export default mongoose.model("Product", productSchema);

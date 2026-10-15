@@ -1,5 +1,6 @@
-import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+import archivable from "./plugins/archivable.js";
 import { ROLES } from "../utils/constants.js";
 
 const SALT_ROUNDS = 10;
@@ -45,6 +46,8 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.plugin(archivable);
 
 /**
  * Hash the password whenever it is set or changed, never store plain text.

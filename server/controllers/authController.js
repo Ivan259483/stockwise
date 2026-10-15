@@ -51,6 +51,9 @@ export const login = asyncHandler(async (req, res) => {
   if (!user || !(await user.comparePassword(password))) {
     throw ApiError.unauthorized("Invalid email or password");
   }
+  if (user.archived) {
+    throw ApiError.forbidden("This account has been archived. Please contact an administrator.");
+  }
   if (!user.isActive) {
     throw ApiError.forbidden("Your account has been deactivated. Please contact an administrator.");
   }

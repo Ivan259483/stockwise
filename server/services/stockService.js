@@ -7,10 +7,11 @@
  */
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import ApiError from "../utils/ApiError.js";
 
 /** Active products only: archived products cannot receive or lose stock. */
-const ACTIVE = { archived: { $ne: true } };
+const ACTIVE = ACTIVE_FILTER;
 
 /**
  * Writes the audit record for a quantity change that has already been applied.

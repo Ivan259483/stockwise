@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import archivable from "./plugins/archivable.js";
 import { MAX_PO_ITEMS, PO_EVENTS, PO_STATUSES } from "../utils/constants.js";
 
 const { ObjectId } = mongoose.Schema.Types;
@@ -75,6 +76,8 @@ const purchaseOrderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+purchaseOrderSchema.plugin(archivable);
 
 /** Line totals and the PO total are always derived from the items, never trusted from the client. */
 purchaseOrderSchema.pre("validate", function computeTotals() {
