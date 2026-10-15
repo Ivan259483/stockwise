@@ -1,6 +1,8 @@
 /**
  * Runs the whole automated test suite against an isolated TEST stack:
  *
+ *   0. runs the presentation seed into a throwaway "stockwise_seedcheck"
+ *      database and verifies it with check-data (the demo DB is not touched)
  *   1. resets the local "stockwise_test" database with fixture data (seed:test)
  *   2. starts the API on :5051 (server/.env.test) and the client on :5174
  *   3. runs the API smoke test, then the headless-Chrome E2E test
@@ -22,8 +24,12 @@ const CLIENT_URL = "http://localhost:5174";
 const children = [];
 
 /** Runs an npm script and resolves with its exit code (output is streamed). */
-const run = (cwd, args, { background = false } = {}) => {
-  const child = spawn("npm", args, { cwd: `${ROOT}${cwd}`, stdio: background ? "ignore" : "inherit" });
+const run = (cwd, args, { background = false, env } = {}) => {
+  const child = spawn("npm", args, {
+    cwd: `${ROOT}${cwd}`,
+    stdio: background ? "ignore" : "inherit",
+    env: { ...process.env, ...env },
+  });
   if (background) {
     children.push(child);
     return child;
@@ -58,7 +64,13 @@ const main = async () => {
     throw new Error("Ports 5051/5174 are already in use. Stop the running test servers first.");
   }
 
-  console.log("== 1/4 Seeding the test database (stockwise_test)");
+  console.log("== 0/4 Presentation seed + check-data on a throwaway database (stockwise_seedcheck)");
+  const seedCheckEnv = { MONGO_URI: "mongodb://127.0.0.1:27017/stockwise_seedcheck" };
+  const seedOk =
+    (await run("server", ["run", "seed"], { env: seedCheckEnv })) === 0 &&
+    (await run("server", ["run", "check-data"], { env: seedCheckEnv })) === 0;
+
+  console.log("\n== 1/4 Seeding the test database (stockwise_test)");
   if ((await run("server", ["run", "seed:test"])) !== 0) throw new Error("seed:test failed");
 
   console.log("== 2/4 Starting the test API (:5051) and test client (:5174)");
@@ -73,8 +85,11 @@ const main = async () => {
   console.log("\n== 4/4 Browser E2E test");
   const e2e = await run("tools", ["run", "e2e"]);
 
-  console.log(`\nSmoke test: ${smoke === 0 ? "PASS" : "FAIL"} · E2E test: ${e2e === 0 ? "PASS" : "FAIL"}`);
-  return smoke === 0 && e2e === 0 ? 0 : 1;
+  const verdict = (ok) => (ok ? "PASS" : "FAIL");
+  console.log(
+    `\nSeed check: ${verdict(seedOk)} · Smoke test: ${verdict(smoke === 0)} · E2E test: ${verdict(e2e === 0)}`
+  );
+  return seedOk && smoke === 0 && e2e === 0 ? 0 : 1;
 };
 
 main()
