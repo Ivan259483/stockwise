@@ -15,6 +15,10 @@ erDiagram
         String phone
         String email
         String address
+        Boolean archived
+        Date archivedAt
+        ObjectId archivedBy FK
+        String archiveReason
     }
     PRODUCT {
         ObjectId _id PK
@@ -22,11 +26,14 @@ erDiagram
         String sku UK
         ObjectId category FK
         ObjectId supplier FK
-        String description
         String unit
         Number costPrice
         Number sellingPrice
         Number quantity
         Number reorderLevel
-        String image
+        Date lowStockAlertSentAt
+        Boolean archived
+        Date archivedAt
+        ObjectId archivedBy FK
+        String archiveReason
     }
