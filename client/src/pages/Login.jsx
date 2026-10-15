@@ -9,10 +9,13 @@ import { getFieldErrors } from "../utils/errors";
 import { validateLogin } from "../utils/validators";
 import AuthLayout from "../components/layout/AuthLayout";
 
-/** Demo accounts created by `npm run seed`, shown so reviewers can try both roles. */
+/**
+ * Demo accounts created by `npm run seed` (made-up domain that does not exist),
+ * shown so reviewers can try both roles.
+ */
 const DEMO_ACCOUNTS = [
-  { role: "Admin", email: "admin@stockwise.com", password: "Admin123!" },
-  { role: "Staff", email: "staff@stockwise.com", password: "Staff123!" },
+  { role: "Admin (owner)", email: "roberto.santos@santosfamilyhw-demo.com", password: "Admin123!" },
+  { role: "Staff (cashier)", email: "kristine.villanueva@santosfamilyhw-demo.com", password: "Staff123!" },
 ];
 
 /**
@@ -84,6 +87,11 @@ export default function Login() {
           placeholder="••••••••"
           required
         />
+        <div className="-mt-1 text-right">
+          <Link to="/forgot-password" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+            Forgot password?
+          </Link>
+        </div>
         <Button type="submit" icon={LogIn} loading={submitting} className="w-full">
           Sign in
         </Button>

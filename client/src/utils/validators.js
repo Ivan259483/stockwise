@@ -22,16 +22,75 @@ export const validateLogin = ({ email, password }) => {
   return errors;
 };
 
-/** @param {{ name: string, email: string, password: string, confirmPassword: string }} values */
-export const validateRegister = ({ name, email, password, confirmPassword }) => {
-  const errors = validateLogin({ email, password });
+/** Same strength rule as the API: 8+ characters with a letter and a number. Returns a message or null. */
+const passwordProblem = (password) => {
+  if (!password) return "Password is required";
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!(/[A-Za-z]/.test(password) && /\d/.test(password))) {
+    return "Password must contain at least one letter and one number";
+  }
+  return null;
+};
+
+/** @param {{ name: string, email: string }} values Name and email (profile and user forms). */
+export const validateNameEmail = ({ name, email }) => {
+  const errors = {};
   if (isBlank(name)) errors.name = "Name is required";
   else if (name.trim().length > 60) errors.name = "Name must be at most 60 characters";
-  if (password && password.length < 8) errors.password = "Password must be at least 8 characters";
-  else if (password && !(/[A-Za-z]/.test(password) && /\d/.test(password))) {
-    errors.password = "Password must contain at least one letter and one number";
-  }
+  if (isBlank(email)) errors.email = "Email is required";
+  else if (!EMAIL_PATTERN.test(email.trim())) errors.email = "Please enter a valid email address";
+  return errors;
+};
+
+/** @param {{ name: string, email: string, password: string, confirmPassword: string }} values */
+export const validateRegister = ({ name, email, password, confirmPassword }) => {
+  const errors = validateNameEmail({ name, email });
+  const problem = passwordProblem(password);
+  if (problem) errors.password = problem;
   if (confirmPassword !== password) errors.confirmPassword = "Passwords do not match";
+  return errors;
+};
+
+/** @param {{ currentPassword: string, newPassword: string, confirmPassword: string }} values */
+export const validatePasswordChange = ({ currentPassword, newPassword, confirmPassword }) => {
+  const errors = {};
+  if (!currentPassword) errors.currentPassword = "Current password is required";
+  const problem = passwordProblem(newPassword);
+  if (problem) errors.newPassword = problem;
+  if (confirmPassword !== newPassword) errors.confirmPassword = "Passwords do not match";
+  return errors;
+};
+
+/** @param {{ email: string }} values */
+export const validateEmailOnly = ({ email }) => {
+  if (isBlank(email)) return { email: "Email is required" };
+  if (!EMAIL_PATTERN.test(email.trim())) return { email: "Please enter a valid email address" };
+  return {};
+};
+
+/** @param {{ email: string, code: string, password: string, confirmPassword: string }} values */
+export const validatePasswordReset = ({ email, code, password, confirmPassword }) => {
+  const errors = validateEmailOnly({ email });
+  if (!/^\d{6}$/.test(String(code ?? "").trim())) errors.code = "Enter the 6-digit code from the email";
+  const problem = passwordProblem(password);
+  if (problem) errors.password = problem;
+  if (confirmPassword !== password) errors.confirmPassword = "Passwords do not match";
+  return errors;
+};
+
+/**
+ * Admin "Add user" / "Edit user" form. The temporary password is required
+ * only when creating an account.
+ * @param {{ name: string, email: string, role: string, password?: string }} values
+ * @param {{ isEdit: boolean }} options
+ */
+export const validateUserForm = (values, { isEdit }) => {
+  const errors = validateNameEmail(values);
+  if (!["admin", "staff"].includes(values.role)) errors.role = "Please choose a role";
+  if (!isEdit) {
+    const problem = passwordProblem(values.password);
+    if (problem) errors.password = problem;
+  }
   return errors;
 };
 
@@ -84,6 +143,29 @@ export const validateMovement = ({ productId, quantity, reason }) => {
   if (isBlank(productId)) errors.productId = "Please choose a product";
   if (!isNonNegativeInteger(quantity) || Number(quantity) < 1) errors.quantity = "Enter a whole number of at least 1";
   if (isBlank(reason)) errors.reason = "Please choose a reason";
+  return errors;
+};
+
+/**
+ * New purchase order: a supplier and at least one complete item row, with no
+ * product listed twice. Errors use the API's field names (items[0].quantity).
+ *
+ * @param {{ supplier: string, items: Array<{ product: string, quantity: string, unitCost: string }> }} values
+ */
+export const validatePurchaseOrder = ({ supplier, items }) => {
+  const errors = {};
+  if (isBlank(supplier)) errors.supplier = "Please choose a supplier";
+  if (items.length === 0) errors.items = "Add at least one item";
+  const seen = new Set();
+  items.forEach((item, index) => {
+    if (isBlank(item.product)) errors[`items[${index}].product`] = "Please choose a product";
+    else if (seen.has(item.product)) errors[`items[${index}].product`] = "This product is already on the order";
+    seen.add(item.product);
+    if (!isNonNegativeInteger(item.quantity) || Number(item.quantity) < 1) {
+      errors[`items[${index}].quantity`] = "Whole number, at least 1";
+    }
+    if (!isNonNegativeNumber(item.unitCost)) errors[`items[${index}].unitCost`] = "Enter 0 or more";
+  });
   return errors;
 };
 

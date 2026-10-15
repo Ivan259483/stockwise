@@ -2,6 +2,7 @@ erDiagram
     direction LR
     USER ||--o{ STOCK_MOVEMENT : "performs"
     PRODUCT ||--o{ STOCK_MOVEMENT : "has history"
+    PURCHASE_ORDER |o--o{ STOCK_MOVEMENT : "creates on receipt"
 
     USER {
         ObjectId _id PK
@@ -10,11 +11,22 @@ erDiagram
         String password
         String role
         Boolean isActive
+        Number tokenVersion
+        String resetCodeHash
+        Date resetCodeExpires
+        Boolean archived
+        Date archivedAt
+        ObjectId archivedBy FK
+        String archiveReason
     }
     PRODUCT {
         ObjectId _id PK
         String sku UK
         String name
+    }
+    PURCHASE_ORDER {
+        ObjectId _id PK
+        String poNumber UK
     }
     STOCK_MOVEMENT {
         ObjectId _id PK
@@ -26,6 +38,7 @@ erDiagram
         Number previousQty
         Number newQty
         String reason
-        String note
         ObjectId performedBy FK
+        ObjectId purchaseOrder FK
+        String poNumber
     }

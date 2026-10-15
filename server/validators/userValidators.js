@@ -1,18 +1,26 @@
 import { body } from "express-validator";
 import { ROLES } from "../utils/constants.js";
+import { emailRule, nameRule, passwordRule } from "./authValidators.js";
 import { idParamRules } from "./common.js";
 
-/** PATCH /api/users/:id: only role and active status can be changed by an admin. */
+const roleRule = () =>
+  body("role")
+    .isIn(ROLES)
+    .withMessage(`Role must be one of: ${ROLES.join(", ")}`);
+
+/** POST /api/users: name, email, temporary password and role are all required. */
+export const createUserRules = [nameRule(), emailRule(), passwordRule(), roleRule()];
+
+/** PATCH /api/users/:id: any of name, email, role and active status. */
 export const updateUserRules = [
   ...idParamRules,
-  body("role")
-    .optional()
-    .isIn(ROLES)
-    .withMessage(`Role must be one of: ${ROLES.join(", ")}`),
+  nameRule().optional(),
+  emailRule().optional(),
+  roleRule().optional(),
   body("isActive").optional().isBoolean({ strict: true }).withMessage("isActive must be true or false"),
   body().custom((value) => {
-    if (value?.role === undefined && value?.isActive === undefined) {
-      throw new Error("Provide a role or isActive value to update");
+    if (["name", "email", "role", "isActive"].every((key) => value?.[key] === undefined)) {
+      throw new Error("Provide a name, email, role or isActive value to update");
     }
     return true;
   }),

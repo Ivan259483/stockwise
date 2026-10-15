@@ -1,4 +1,14 @@
-import { ArrowLeftRight, LayoutDashboard, Package, Tags, Truck, Users } from "lucide-react";
+import {
+  Archive,
+  ArrowLeftRight,
+  CircleUser,
+  ClipboardList,
+  LayoutDashboard,
+  Package,
+  Tags,
+  Truck,
+  Users,
+} from "lucide-react";
 
 /**
  * Sidebar links. `adminOnly` links are hidden from staff (the routes are also
@@ -8,7 +18,10 @@ export const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/products", label: "Products", icon: Package },
   { to: "/movements", label: "Stock Movements", icon: ArrowLeftRight },
+  { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/categories", label: "Categories", icon: Tags },
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/users", label: "Users", icon: Users, adminOnly: true },
+  { to: "/archive", label: "Archive", icon: Archive, adminOnly: true },
+  { to: "/profile", label: "My Profile", icon: CircleUser },
 ];

@@ -28,6 +28,9 @@ const stockMovementSchema = new mongoose.Schema(
     },
     note: { type: String, trim: true, maxlength: [300, "Note must be at most 300 characters"], default: "" },
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    /** Set when the movement was created by receiving a purchase order. */
+    purchaseOrder: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseOrder", default: null },
+    poNumber: { type: String, default: "" },
   },
   { timestamps: true }
 );

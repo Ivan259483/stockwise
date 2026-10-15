@@ -3,6 +3,7 @@ import Category from "../models/Category.js";
 import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
 import Supplier from "../models/Supplier.js";
+import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { escapeRegex, getPagination, paginated, pick } from "../utils/helpers.js";
@@ -45,17 +46,20 @@ const STATUS_FILTERS = {
 
 /**
  * Confirms that the referenced category (and supplier, if any) exist, so a
- * product never points at a missing document.
+ * product never points at a missing document. A newly chosen supplier must
+ * also be active; keeping a product's current (since archived) supplier is allowed.
  *
  * @param {{ category?: string, supplier?: string|null }} fields
+ * @param {unknown} [currentSupplier] The product's supplier before this update.
  */
-const assertReferencesExist = async ({ category, supplier }) => {
+const assertReferencesExist = async ({ category, supplier }, currentSupplier = null) => {
   const errors = [];
   if (category && !(await Category.exists({ _id: category }))) {
     errors.push({ field: "category", message: "Selected category does not exist" });
   }
-  if (supplier && !(await Supplier.exists({ _id: supplier }))) {
-    errors.push({ field: "supplier", message: "Selected supplier does not exist" });
+  const keepsCurrent = supplier && currentSupplier && String(supplier) === String(currentSupplier);
+  if (supplier && !keepsCurrent && !(await Supplier.exists({ _id: supplier, ...ACTIVE_FILTER }))) {
+    errors.push({ field: "supplier", message: "Selected supplier does not exist or is archived" });
   }
   if (errors.length) throw ApiError.badRequest(errors[0].message, errors);
 };
@@ -78,7 +82,8 @@ const readProductFields = (body) => {
  */
 export const getProducts = asyncHandler(async (req, res) => {
   const { search, category, status, sort = "name" } = req.query;
-  const filter = {};
+  // Archived products never appear in lists, searches or pickers (only on the Archive page).
+  const filter = { ...ACTIVE_FILTER };
 
   if (search?.trim()) {
     const pattern = new RegExp(escapeRegex(search.trim()), "i");
@@ -112,11 +117,16 @@ export const getProducts = asyncHandler(async (req, res) => {
   res.json(paginated(products, total, pagination));
 });
 
-/** GET /api/products/:id: the product plus its 20 most recent movements. */
+/**
+ * GET /api/products/:id: the product plus its 20 most recent movements.
+ * Archived products can still be opened (e.g. from old movement history);
+ * the page shows them as archived and stock actions are refused.
+ */
 export const getProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id)
     .populate("category", "name")
-    .populate("supplier", "name contactPerson phone email");
+    .populate("supplier", "name contactPerson phone email archived")
+    .populate("archivedBy", "name");
   if (!product) throw ApiError.notFound("Product not found");
 
   const movements = await StockMovement.find({ product: product._id })
@@ -135,6 +145,12 @@ export const getProduct = asyncHandler(async (req, res) => {
 export const createProduct = asyncHandler(async (req, res) => {
   const fields = readProductFields(req.body);
   await assertReferencesExist(fields);
+
+  // A clearer message than "SKU already exists" when the owner cannot see the product.
+  if (fields.sku && (await Product.exists({ sku: String(fields.sku).toUpperCase(), archived: true }))) {
+    const message = "This SKU belongs to an archived product. Restore it from the Archive page instead.";
+    throw ApiError.conflict(message, [{ field: "sku", message }]);
+  }
 
   const quantity = req.body.quantity ?? 0;
   const product = await Product.create({ ...fields, quantity });
@@ -169,9 +185,10 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw ApiError.notFound("Product not found");
+  if (product.archived) throw ApiError.conflict("Archived products cannot be edited. Restore it first.");
 
   const fields = readProductFields(req.body);
-  await assertReferencesExist(fields);
+  await assertReferencesExist(fields, product.supplier);
 
   product.set(fields);
   await product.save();
@@ -181,15 +198,4 @@ export const updateProduct = asyncHandler(async (req, res) => {
     { path: "supplier", select: "name" },
   ]);
   res.json({ success: true, data: product, message: "Product updated" });
-});
-
-/**
- * DELETE /api/products/:id (admin)
- * Stock movements are kept: they store name/SKU snapshots for the audit trail.
- */
-export const deleteProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
-  if (!product) throw ApiError.notFound("Product not found");
-
-  res.json({ success: true, data: { _id: product._id }, message: "Product deleted" });
 });

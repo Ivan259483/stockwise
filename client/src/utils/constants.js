@@ -2,6 +2,14 @@
 
 export const APP_NAME = "StockWise";
 
+/** The sample client organization (shown as text in the header and on the login page; no logo). */
+export const STORE_NAME = "Santos Family Hardware";
+
+export const ROLE_OPTIONS = [
+  { value: "staff", label: "Staff" },
+  { value: "admin", label: "Admin" },
+];
+
 export const UNITS = ["pcs", "box", "kg", "L", "pack"];
 
 export const IN_REASONS = ["Purchase", "Return", "Adjustment", "Other"];
@@ -18,6 +26,16 @@ export const STOCK_STATUS = {
   low_stock: { label: "Low stock", tone: "warning" },
   out_of_stock: { label: "Out of stock", tone: "danger" },
 };
+
+/** Purchase order statuses in workflow order, with their badge colors. */
+export const PO_STATUS = {
+  Requested: { label: "Requested", tone: "warning" },
+  Approved: { label: "Approved", tone: "info" },
+  Received: { label: "Received", tone: "success" },
+  Rejected: { label: "Rejected", tone: "danger" },
+  Cancelled: { label: "Cancelled", tone: "neutral" },
+};
+export const PO_STATUSES = Object.keys(PO_STATUS);
 
 export const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },

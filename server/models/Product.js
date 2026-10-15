@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import archivable from "./plugins/archivable.js";
 import { MAX_IMAGE_BYTES, UNITS } from "../utils/constants.js";
 
 /**
@@ -66,6 +67,12 @@ const productSchema = new mongoose.Schema(
       default: 10,
       validate: { validator: Number.isInteger, message: "Reorder level must be a whole number" },
     },
+    /**
+     * When the admins were emailed that this product is low or out of stock.
+     * Cleared when it is restocked above its reorder level, so each product
+     * triggers at most one alert per "low" period.
+     */
+    lowStockAlertSentAt: { type: Date, default: null },
     image: {
       type: String,
       default: "",
@@ -107,5 +114,7 @@ productSchema.virtual("stockStatus").get(function stockStatus() {
 productSchema.virtual("stockValue").get(function stockValue() {
   return Math.round(this.quantity * this.costPrice * 100) / 100;
 });
+
+productSchema.plugin(archivable);
 
 export default mongoose.model("Product", productSchema);

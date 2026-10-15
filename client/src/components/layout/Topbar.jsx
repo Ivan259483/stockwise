@@ -1,11 +1,12 @@
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Store } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import { Link } from "react-router-dom";
+import { STORE_NAME } from "../../utils/constants";
 import Badge from "../ui/Badge";
-import Logo from "../ui/Logo";
 
 /**
- * Top bar: hamburger (mobile), signed-in user with role badge, and logout.
+ * Top bar: hamburger (mobile), the client store's name, signed-in user (links
+ * to My Profile) with role badge, and logout.
  * @param {{ onMenuClick: () => void, menuOpen: boolean }} props
  */
 export default function Topbar({ onMenuClick, menuOpen }) {
@@ -28,26 +29,34 @@ export default function Topbar({ onMenuClick, menuOpen }) {
       >
         <Menu className="size-5" aria-hidden="true" />
       </button>
-      <Link to="/" className="hidden sm:block lg:hidden" aria-label="StockWise home">
-        <Logo />
+      <Link to="/" className="flex min-w-0 items-center gap-2 text-slate-900" aria-label={`${STORE_NAME} home`}>
+        <Store className="hidden size-5 shrink-0 text-primary-600 sm:block" aria-hidden="true" />
+        <span className="truncate text-sm font-semibold sm:text-base" data-testid="store-name">
+          {STORE_NAME}
+        </span>
       </Link>
 
       <div className="ml-auto flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
+        <Link
+          to="/profile"
+          className="flex items-center gap-2.5 rounded-lg p-1 hover:bg-slate-100"
+          aria-label="My profile"
+          title="My profile"
+        >
           <span
             className="flex size-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700"
             aria-hidden="true"
           >
             {initials}
           </span>
-          <div className="hidden leading-tight sm:block">
+          <div className="hidden leading-tight md:block">
             <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
             <p className="text-xs text-slate-500">{user?.email}</p>
           </div>
-          <Badge tone={user?.role === "admin" ? "primary" : "neutral"} className="capitalize">
+          <Badge tone={user?.role === "admin" ? "primary" : "neutral"} className="hidden capitalize sm:inline-flex">
             {user?.role}
           </Badge>
-        </div>
+        </Link>
         <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
         <button
           type="button"

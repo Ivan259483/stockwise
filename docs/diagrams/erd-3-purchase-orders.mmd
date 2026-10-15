@@ -1,0 +1,53 @@
+erDiagram
+    direction LR
+    SUPPLIER ||--o{ PURCHASE_ORDER : "receives"
+    USER ||--o{ PURCHASE_ORDER : "requests, approves, receives"
+    PURCHASE_ORDER ||--|{ PO_ITEM : "contains (embedded)"
+    PURCHASE_ORDER ||--|{ PO_EVENT : "timeline (embedded)"
+    PRODUCT ||--o{ PO_ITEM : "ordered as"
+
+    PURCHASE_ORDER {
+        ObjectId _id PK
+        String poNumber UK
+        ObjectId supplier FK
+        String supplierName
+        Number totalAmount
+        String status
+        String notes
+        ObjectId requestedBy FK
+        ObjectId approvedBy FK
+        ObjectId rejectedBy FK
+        String rejectionReason
+        ObjectId receivedBy FK
+        Date receivedAt
+        ObjectId cancelledBy FK
+        Boolean archived
+        ObjectId archivedBy FK
+        String archiveReason
+    }
+    PO_ITEM {
+        ObjectId product FK
+        String productName
+        String sku
+        Number quantity
+        Number unitCost
+        Number lineTotal
+    }
+    PO_EVENT {
+        String action
+        ObjectId by FK
+        Date at
+        String note
+    }
+    SUPPLIER {
+        ObjectId _id PK
+        String name
+    }
+    USER {
+        ObjectId _id PK
+        String name
+    }
+    PRODUCT {
+        ObjectId _id PK
+        String sku UK
+    }

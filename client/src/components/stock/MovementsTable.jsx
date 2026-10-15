@@ -57,7 +57,23 @@ export default function MovementsTable({ movements, showProduct = true }) {
         </span>
       ),
     },
-    { key: "reason", header: "Reason" },
+    {
+      key: "reason",
+      header: "Reason",
+      render: (m) => (
+        <span className="whitespace-nowrap">
+          {m.reason}
+          {m.purchaseOrder && (
+            <Link
+              to={`/purchase-orders/${m.purchaseOrder}`}
+              className="ml-1.5 font-mono text-xs font-semibold text-primary-600 hover:text-primary-700"
+            >
+              {m.poNumber}
+            </Link>
+          )}
+        </span>
+      ),
+    },
     {
       key: "note",
       header: "Note",
@@ -76,7 +92,8 @@ export default function MovementsTable({ movements, showProduct = true }) {
           </Link>
         )}
         <p className="text-sm text-slate-600">
-          {m.reason} · {formatNumber(m.previousQty)} → {formatNumber(m.newQty)}
+          {m.reason}
+          {m.poNumber && ` (${m.poNumber})`} · {formatNumber(m.previousQty)} → {formatNumber(m.newQty)}
         </p>
         {m.note && <p className="truncate text-xs text-slate-500">{m.note}</p>}
         <p className="mt-1 text-xs text-slate-500">

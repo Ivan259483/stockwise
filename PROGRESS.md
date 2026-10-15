@@ -1,5 +1,7 @@
 # StockWise Build Progress
 
+## Part 1: Integrative Programming (tag `ipt-version`)
+
 | Phase | Status | Notes |
 |---|---|---|
 | 0. Setup check | ✅ Done | Node 26.11, npm 11.20, git 2.54; `gh` and `vercel` logged in. Folder structure, `.gitignore`, README skeleton. |
@@ -20,3 +22,17 @@
 - **TOC:** lists the nine main headings at 1.5 spacing (like all other text) so it fits on page 2. "Live Deliverables" starts a new page so Word and Chrome paginate page 3 identically.
 - **ERD:** split into two diagrams (product catalog, stock history) so the labels print at about 11 pt; field constraints are in Tables 2–6.
 - **PDF line height:** the HTML used for the PDF sets `line-height: 1.725`, because Word's "1.5 lines" for Arial equals 1.5 × 1.15 em. The two files paginate identically (all 34 TOC entries land on the same pages).
+
+## Part 2: System Integration and Architecture (branch `ctsysinl`)
+
+| Step | Status | Notes |
+|---|---|---|
+| Setup | ✅ Done | Tagged `main` as `ipt-version` (pushed); branch `ctsysinl`. Local MongoDB 8.0: `stockwise_dev` (demo), `stockwise_test` (tests). Atlas URI kept commented in `server/.env`. |
+| 1. Accounts, recovery, users | ✅ Done | Profile, password change (token version), Gmail SMTP recovery code (bcrypt hash, 15 min, 5 guesses, cooldown, IP limit), admin add/edit users. |
+| 2. Purchase orders | ✅ Done | Requested/Approved/Rejected/Received/Cancelled with atomic transitions, timeline, list/form/details pages, dashboard counts; receiving reuses the atomic stock service. |
+| 3. Archive | ✅ Done | Plugin on 4 collections, archive/restore endpoints, Archive page, blocked on open POs / self, archived users cannot log in. |
+| 4. Seed and check-data | ✅ Done | Deterministic 45-day simulation for Santos Family Hardware; `npm run check-data`. Demo domain `santosfamilyhw-demo.com` (NXDOMAIN). |
+| 8. Low-stock email alerts | ✅ Done | Once per product until restocked; optional `STOCK_ALERT_CC`. |
+| 5. Docs | ✅ Done | Architecture + PO workflow + 3 ERDs, 38 screenshots, 45-page .docx/.pdf with both subjects, README, presentation script. |
+
+Decisions: rejected POs can also be archived (they are closed like cancelled ones); receiving is all-or-nothing (no partial deliveries); categories keep hard delete (out of scope); tests read reset codes from a file outbox written only when `NODE_ENV=test`; demo/test domains are never emailed.

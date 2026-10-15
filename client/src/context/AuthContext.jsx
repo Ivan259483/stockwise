@@ -44,6 +44,19 @@ function useAuthState() {
 
   const register = useCallback(async (data) => startSession((await authApi.register(data)).data), [startSession]);
 
+  /** Saves profile changes (name/email) and updates the signed-in user everywhere. */
+  const updateProfile = useCallback(async (data) => {
+    const body = await authApi.updateProfile(data);
+    setUser(body.data);
+    return body.data;
+  }, []);
+
+  /** Changing the password signs out other sessions; the API returns a new token for this one. */
+  const changePassword = useCallback(
+    async (data) => startSession((await authApi.changePassword(data)).data),
+    [startSession]
+  );
+
   return useMemo(
     () => ({
       user,
@@ -53,8 +66,10 @@ function useAuthState() {
       login,
       register,
       logout,
+      updateProfile,
+      changePassword,
     }),
-    [user, initializing, login, register, logout]
+    [user, initializing, login, register, logout, updateProfile, changePassword]
   );
 }
 

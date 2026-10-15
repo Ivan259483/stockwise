@@ -1,81 +1,96 @@
 # StockWise: 5-Minute Presentation and Demo Script
 
-**Presenter:** Ivan Tadena (solo) · **Course:** Integrative Programming and Technologies, INF238
+**Presenter:** Ivan Tadena (solo) · **Subjects:** Integrative Programming and Technologies (INF238) and System Integration and Architecture (CTSYSINL) · **Client:** Santos Family Hardware
 
-## Before you start (5 minutes ahead)
+## Before you start (10 minutes ahead)
 
-1. Optional reset for clean demo data: `cd server && npm run seed`.
-2. Open these browser tabs, in order:
-   1. https://stockwise-ivan.vercel.app/login (logged out)
-   2. `docs/diagrams/architecture.png`
-   3. https://github.com/Ivan259483/stockwise
-3. Open https://stockwise-api-ivan.vercel.app/api/health once so the API is warm (avoids a cold start during the demo).
-4. Zoom the browser to about 110% so the audience can read it.
+1. Make sure the data is fresh: `cd server && npm run seed` (local) — or the live Atlas database was re-seeded — then `npm run check-data` must end with **OK**.
+2. Gmail SMTP is configured (`SMTP_USER`, `SMTP_PASS`; optionally `STOCK_ALERT_CC` = your email) on the API you will use. Without it, the reset code is printed in the backend console (local only).
+3. Open these tabs, in order:
+   1. the web app login page (logged out): https://stockwise-ivan.vercel.app/login or http://localhost:5173/login
+   2. `docs/diagrams/architecture.png` and `docs/diagrams/po-workflow.png`
+   3. Gmail (ivantadena21@gmail.com) on your phone or a second tab
+   4. a terminal in `server/` (for `npm run check-data`)
+4. Warm up the API once: open `/api/health`.
+5. Zoom the browser to about 110%.
+
+Accounts (all from the seed): owner **roberto.santos@santosfamilyhw-demo.com / Admin123!**; staff **ivantadena21@gmail.com** (your own mailbox, for password recovery).
 
 ## Timeline
 
-| Time | Segment | What to show |
+| Time | Segment | Module shown |
 |---|---|---|
-| 0:00 – 0:30 | Problem | Title slide or login page |
-| 0:30 – 1:05 | Solution and architecture | Architecture diagram |
-| 1:05 – 1:40 | Login and roles | Login page → admin dashboard |
-| 1:40 – 2:15 | Dashboard | Stat cards, charts, restock list |
-| 2:15 – 3:05 | Products (CRUD + validation) | Search, filter, add product |
-| 3:05 – 3:50 | Stock movements | Stock in, insufficient stock out, history |
-| 3:50 – 4:20 | Staff role and mobile | Staff login, phone layout |
-| 4:20 – 4:50 | Engineering quality | GitHub repo, tests, deployment |
-| 4:50 – 5:00 | Closing | Summary, invite questions |
+| 0:00 – 0:25 | Client and problem | Target client |
+| 0:25 – 0:55 | Architecture and integrations | Architecture, Gmail SMTP |
+| 0:55 – 1:40 | Forgot password → reset → profile | Account Management |
+| 1:40 – 2:45 | Purchase order from request to received | Core business process |
+| 2:45 – 3:25 | Add, edit and archive a user | User Management |
+| 3:25 – 4:15 | Archive rules and restore | Archive Module |
+| 4:15 – 4:45 | Demo data and tests | Data cleanup, quality |
+| 4:45 – 5:00 | Closing | |
 
 ## Script
 
-### 0:00 – 0:30 · Problem
-> "Good morning. I'm Ivan Tadena, and this is **StockWise**, an inventory management system for small Philippine businesses such as hardware stores and sari-sari stores. Many of them still track stock in paper logbooks. That leads to stockouts, overstocking, missing items, and no record of who changed what."
+### 0:00 – 0:25 · Client and problem
+*Login page (shows "Santos Family Hardware").*
+> "Good morning. I'm Ivan Tadena. My client is **Santos Family Hardware**, a family-owned hardware store run by Roberto and Maricel Santos with eight staff. They tracked stock in a logbook and ordered from suppliers by phone, so nobody knew what was ordered, who approved it, or whether it arrived. StockWise fixes that."
 
-### 0:30 – 1:05 · Solution and architecture
-*Show the architecture diagram.*
-> "StockWise is a MERN application. The React client and the Express REST API are deployed as two Vercel projects, and the data lives in MongoDB Atlas. The client sends JSON over HTTPS with a JWT in the Authorization header. Every request passes through security middleware, authentication, validation and a controller, and any error goes through one central error handler."
+### 0:25 – 0:55 · Architecture and integrations
+*Show `architecture.png`.*
+> "StockWise is a MERN system with three tiers and one external service: a React client and an Express REST API, both on Vercel, MongoDB Atlas for data, and **Gmail SMTP** for emails. Every request carries a JWT and goes through middleware, authentication, validation, a controller and shared services. The stock service does every quantity change atomically, and the mailer sends password-reset codes and low-stock alerts."
 
-### 1:05 – 1:40 · Login and roles
-*On the login page, click **Sign in** with empty fields to show the inline errors, then click **Use Admin** and sign in.*
-> "Forms are validated on the client and again on the server. There are two roles: an admin manages everything, and staff can view inventory and record stock movements. Passwords are hashed with bcrypt, and the session is a JWT that expires after one day."
+### 0:55 – 1:40 · Account Management: password recovery and profile
+*Click **Forgot password?**, type `ivantadena21@gmail.com`, click **Send reset code**.*
+> "If a user forgets their password, the system emails a six-digit code. Only a hash of the code is stored, it expires in 15 minutes, and the request is rate-limited. The answer is the same for unknown emails, so nobody can use it to find accounts."
 
-### 1:40 – 2:15 · Dashboard
-> "The dashboard shows 21 products, about ₱110,000 in stock value at cost, 5 low-stock items and 3 out-of-stock items. The bar chart shows value by category, and the line chart compares stock in and stock out over the last seven days. The *Needs restocking* list puts out-of-stock items first."
+*Open Gmail, read the code, type it with a new password (e.g. `Demo2026!`) and click **Reset password**. Sign in with the new password.*
+*Click your name in the header → **My Profile**.*
+> "On My Profile every user can change their name, email and password. Changing the password signs out their other devices."
 
-*Click the **Low stock** card. It opens the product list already filtered.*
+### 1:40 – 2:45 · Core business process: purchase orders
+*Still signed in as Ivan (staff): **Purchase Orders → New purchase order**. Supplier **Quezon Paint Center**, product **Latex Paint White 4 L**, quantity **12** (unit cost fills in). Click **Submit request**.*
+> "Staff create a PO request: supplier, items, quantities and unit costs. It starts as **Requested** and the timeline records who requested it."
 
-### 2:15 – 3:05 · Products: CRUD and validation
-*Type "hammer" in the search box (results update after 300 ms). Clear it, then click **Add product** and press **Create product** with an empty form.*
-> "Search is debounced, and the filters live in the URL, so a refresh keeps them. Here, the empty form shows field-level errors."
+*Log out, sign in as **Roberto** (owner). Point at the dashboard tile "waiting for your approval", open the new PO, click **Approve**.*
+> "Only an owner can approve or reject. Rejecting needs a reason. The status change is atomic, so two people can't approve it twice."
 
-*Fill in: Name `Demo Pliers 8"`, SKU `HT-PLR-008`, Category `Hand Tools`, cost 150, price 220, opening quantity 5. Click **Create product**.*
-> "The opening stock is recorded automatically as the first stock movement, so the history is complete from day one."
+*Go back to **Purchase Orders → Approved** tab, open the Quezon PO with **Paint Thinner** (out of stock) and click **Mark as received**.*
+> "When the delivery arrives, the PO is marked **Received**, the completed state. The system records a stock-in movement for each item using the same atomic update as the stock page."
 
-### 3:05 – 3:50 · Stock movements and the business rule
-*On the new product's page, click **Stock in**, enter 10 (reason Purchase) and save. The quantity becomes 15.*
-*Click **Stock out** and enter 100.*
-> "This is the key business rule. The server answers **409: Insufficient stock, only 15 available**. The check and the update happen in one atomic MongoDB operation, so even two cashiers at the same moment can't push stock below zero."
+*Click **Paint Thinner** in the items → its quantity went from 0 to 24 and the movement shows the PO number. Back on the PO, point at the timeline.*
 
-*Change the quantity to 3 and save. Scroll to **Movement history** to show previous and new quantities.*
+### 2:45 – 3:25 · User Management
+*Open **Users** → **Add user**: name `Joel Pascual`, email `joel.pascual@santosfamilyhw-demo.com`, role Staff, password `Welcome2026`. Save. Click the pencil, change the role to **Admin**, save.*
+> "Admins add users, edit their info and role, and switch accounts off. Role checks are in both the API and the UI, and my own controls are disabled so I can't lock myself out."
 
-### 3:50 – 4:20 · Staff role and mobile
-*Log out, click **Use Staff** and sign in.*
-> "Staff don't see the Users page or any edit buttons, and the API rejects those actions with 403 even if someone calls it directly."
+*Click the archive icon on Joel, reason `Demo account`, **Archive**.*
+> "People who leave are archived, not deleted. An archived user can't log in, but their history stays."
 
-*Open DevTools device mode (iPhone) or shrink the window.*
-> "The layout is responsive: the sidebar becomes a drawer and tables become cards."
+### 3:25 – 4:15 · Archive Module
+*Open **Products**, search `Deformed Bar`, click its archive icon, give a reason, **Archive**.*
+> "This is blocked: the product is on an open purchase order, so the system tells me which PO to finish first."
 
-### 4:20 – 4:50 · Engineering quality
-*Show the GitHub repository.*
-> "The code is modular: models, controllers, routes, middleware and validators on the server; reusable components and hooks on the client. ESLint and Prettier enforce the coding standards. A 40-check API smoke test and a 30-step headless-Chrome end-to-end test both pass against the live site, and every push to GitHub redeploys automatically."
+*Archive **Brass Padlock 40 mm** instead (reason `Discontinued`). Show it is gone from the list and from the PO form's product dropdown. Open **Archive**: tabs for products, suppliers, users and purchase orders, with who archived each record, when and why. Click **View** on the padlock, then **Restore**.*
+> "Archived records never appear in lists, searches or forms, only here, and they can be restored. Received, rejected and cancelled POs can be archived too."
 
-### 4:50 – 5:00 · Closing
-> "In summary, StockWise gives small stores an accurate, auditable inventory with low-stock alerts. Next steps are barcode scanning, purchase orders and multi-branch support. Thank you. I'm happy to take questions."
+### 4:15 – 4:45 · Demo data and quality
+*Terminal: `npm run check-data`.*
+> "All data you saw is presentation data for the client: ten users, 33 products, more than thirty received purchase orders with matching stock movements, and sales. This command checks that every stock level equals its movement history and flags anything that looks like test data. The automated tests, 115 API checks and a 49-step browser test, run only on a separate test database, so they never touch this data."
+
+### 4:45 – 5:00 · Closing
+> "StockWise now integrates a React client, a REST API, MongoDB Atlas and Gmail into one system for Santos Family Hardware: accounts, users, purchase orders and an archive that keeps every record. Next would be partial deliveries and emailing POs to suppliers. Thank you, I'm happy to take questions."
+
+## If something goes wrong
+
+- **No reset email:** check spam; locally, read the code from the backend console. Codes can be requested once a minute.
+- **Locked out after resetting:** the presenter account's password is whatever you set during the demo; re-run the seed to restore `Staff123!`.
+- **Want to show the low-stock email:** with `STOCK_ALERT_CC` set, pick a product just above its reorder level on the Products page (after a fresh seed, **Brass Faucet 1/2"** has 7 with reorder level 6) and record a **Stock out** of 1. The notice "The admins were emailed" appears and the alert arrives in your inbox. (Exact quantities can differ by a unit or two depending on the time of day the seed ran.)
 
 ## Likely questions (short answers)
 
-- **Why MongoDB?** Product and movement documents map naturally to JSON, and Atlas gives a free managed cluster. Atomic operators like `$inc` handle the stock rule without transactions.
-- **How is the JWT protected?** It is signed with a 96-character random secret stored only in environment variables. The server reloads the user on every request, so a deactivated user is blocked immediately.
-- **What if two people sell the last item?** The stock-out is one conditional `findOneAndUpdate`; only one request can succeed. The other gets a 409.
-- **Why can't quantity be edited directly?** Every change must go through stock in/out so it appears in the audit trail.
-- **What happens when a product is deleted?** Its movements keep a snapshot of the name and SKU, so the history stays readable.
+- **What is "integration" here?** Four parts talk over defined interfaces: the React client and the REST API (JSON over HTTPS with JWT), the API and MongoDB Atlas (Mongoose), and the API and Gmail (SMTP over TLS). Receiving a PO also integrates two modules: purchase orders and stock movements share one stock service.
+- **How do you stop double approval or double receiving?** Each status change is one database update that only matches while the PO is still in the expected status; the second click gets a 409.
+- **What if receiving fails half-way?** The items already added are reverted and the PO goes back to Approved.
+- **Why archive instead of delete?** Movements and POs point to products, suppliers and users; deleting them would break the history. Archive hides them but keeps every reference.
+- **How is the reset code protected?** bcrypt hash only, 15-minute expiry, five guesses, one code per minute per account, a per-IP rate limit, and the same response for unknown emails.
+- **Is the demo data real?** No. The store and people are fictional, and the email domain does not exist (checked with nslookup), except my own account for the recovery demo.

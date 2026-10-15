@@ -1,16 +1,22 @@
 /**
  * Headless-Chrome end-to-end test of the StockWise web app, for both roles.
  *
- * Covers login (including validation and wrong password), dashboard, product
- * CRUD with client- and server-side validation errors, stock in, an
- * insufficient stock out, categories, suppliers, users, role restrictions,
- * the 375px mobile layout, refreshing a nested route, and session expiry.
- * Test records use a unique suffix and are deleted at the end.
+ * Covers login (including validation and wrong password), password recovery
+ * with the emailed code, the profile page, dashboard, product CRUD with client-
+ * and server-side validation errors, stock in, an insufficient stock out,
+ * categories, suppliers, user management, role restrictions, the 375px mobile
+ * layout, refreshing a nested route, and session expiry.
  *
- * Usage: node e2e.mjs [baseUrl]   (default http://localhost:5173)
+ * It only runs against the TEST stack (client `npm run dev:test` on :5174, API
+ * `npm run dev:test` on :5051 with the stockwise_test database): it checks the
+ * API's database name first and aborts unless it ends in "_test". Reset codes
+ * are read from the test API's mail outbox (server/tmp/outbox.jsonl).
+ *
+ * Usage: node e2e.mjs [baseUrl] [apiUrl]   (defaults http://localhost:5174, http://localhost:5051)
+ * Simplest: node run-tests.mjs (seeds, starts both servers, runs smoke + E2E).
  * A failing step saves a screenshot in tools/e2e-failures/.
  */
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import {
   clickText,
   DESKTOP,
@@ -23,14 +29,19 @@ import {
   waitForText,
 } from "./lib/browser.mjs";
 
-const BASE_URL = (process.argv[2] ?? process.env.BASE_URL ?? "http://localhost:5173").replace(/\/$/, "");
-const ADMIN = ["admin@stockwise.com", "Admin123!"];
-const STAFF = ["staff@stockwise.com", "Staff123!"];
+const BASE_URL = (process.argv[2] ?? process.env.BASE_URL ?? "http://localhost:5174").replace(/\/$/, "");
+const API_URL = (process.argv[3] ?? process.env.API_URL ?? "http://localhost:5051").replace(/\/$/, "");
+const OUTBOX_FILE = new URL("../server/tmp/outbox.jsonl", import.meta.url);
+const ADMIN = ["admin@stockwise.test", "Admin123!"];
+const STAFF = ["staff@stockwise.test", "Staff123!"];
+const RECOVERY_EMAIL = "e2e.recovery@stockwise.test";
 const SUFFIX = Date.now().toString(36).toUpperCase().slice(-5);
 const SKU = `E2E-${SUFFIX}`;
 const PRODUCT_NAME = `E2E Test Product ${SUFFIX}`;
 const CATEGORY_NAME = `E2E Category ${SUFFIX}`;
 const SUPPLIER_NAME = `E2E Supplier ${SUFFIX}`;
+const NEW_USER_NAME = `E2E User ${SUFFIX}`;
+const NEW_USER_EMAIL = `e2e.user.${SUFFIX.toLowerCase()}@stockwise.test`;
 
 const results = [];
 let page;
@@ -53,15 +64,50 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 
+/** Selects the first <option> whose text starts with `text` in the <select> matching `selector`. */
+const selectByText = async (selector, text) => {
+  await page.waitForFunction(
+    (sel, t) => [...(document.querySelector(sel)?.options ?? [])].some((o) => o.text.startsWith(t)),
+    { timeout: 15000 },
+    selector,
+    text
+  );
+  const value = await page.$eval(selector, (s, t) => [...s.options].find((o) => o.text.startsWith(t)).value, text);
+  await page.select(selector, value);
+};
+
 /** Opens a page via the address bar (full reload), like a user refreshing. */
 const open = (path) => page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle0" });
 
+/** The 6-digit code in the latest reset email the test API "sent" to `email`. */
+const latestResetCode = async (email) => {
+  const text = await readFile(OUTBOX_FILE, "utf8").catch(() => "");
+  const messages = text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((message) => message.to.includes(email));
+  return messages.at(-1)?.text.match(/\b(\d{6})\b/)?.[1] ?? null;
+};
+
+/** Refuses to run unless the API is connected to a *_test database. */
+const assertTestDatabase = async () => {
+  const health = await fetch(`${API_URL}/api/health`).then((r) => r.json());
+  const name = health?.data?.databaseName ?? "";
+  if (!name.endsWith("_test")) {
+    throw new Error(`API at ${API_URL} uses database "${name || "unknown"}"; E2E only runs against a *_test database`);
+  }
+};
+
 const run = async () => {
-  console.log(`StockWise E2E → ${BASE_URL}\n`);
+  console.log(`StockWise E2E → ${BASE_URL} (API ${API_URL})\n`);
+  await assertTestDatabase();
   const browser = await launch();
   page = await browser.newPage();
   await page.setViewport(DESKTOP);
   let productUrl = "";
+  let poUrl = "";
+  let poNumber = "";
 
   // ---------------------------------------------------------------- Auth
   await step("Login form shows inline errors when empty", async () => {
@@ -77,6 +123,35 @@ const run = async () => {
     await fill(page, 'input[name="password"]', "WrongPass1");
     await clickText(page, "Sign in", 'button[type="submit"]');
     await waitForText(page, "Invalid email or password");
+  });
+
+  await step("Login page shows the store name and a Forgot password link", async () => {
+    await open("/login");
+    await waitForText(page, "Santos Family Hardware");
+    await waitForText(page, "Forgot password?");
+  });
+
+  await step("Password recovery: emailed 6-digit code resets the password", async () => {
+    await clickText(page, "Forgot password?", "a");
+    await waitForText(page, "Forgot your password?");
+    await clickText(page, "Send reset code", 'button[type="submit"]');
+    await waitForText(page, "Email is required");
+    await fill(page, 'input[name="email"]', RECOVERY_EMAIL);
+    await clickText(page, "Send reset code", 'button[type="submit"]');
+    await waitForText(page, "If an account with that email exists");
+    const code = await latestResetCode(RECOVERY_EMAIL);
+    assert(code, "no reset code found in the test outbox");
+    await fill(page, 'input[name="code"]', code === "000000" ? "111111" : "000000");
+    await fill(page, 'input[name="password"]', "Recovered123");
+    await fill(page, 'input[name="confirmPassword"]', "Recovered123");
+    await clickText(page, "Reset password", 'button[type="submit"]');
+    await waitForText(page, "attempts left");
+    await fill(page, 'input[name="code"]', code);
+    await clickText(page, "Reset password", 'button[type="submit"]');
+    await page.waitForFunction(() => location.pathname === "/login", { timeout: 15000 });
+    await waitForText(page, "Your password has been reset");
+    await login(page, BASE_URL, RECOVERY_EMAIL, "Recovered123");
+    await resetSession(page, BASE_URL);
   });
 
   await step("Protected page redirects to /login when signed out", async () => {
@@ -245,7 +320,7 @@ const run = async () => {
   });
 
   // ---------------------------------------------------------------- Suppliers
-  await step("Supplier validation, create and delete", async () => {
+  await step("Supplier validation, create and archive (with a reason)", async () => {
     await open("/suppliers");
     await clickText(page, "Add supplier");
     await fill(page, '[role="dialog"] input[name="name"]', SUPPLIER_NAME);
@@ -255,23 +330,123 @@ const run = async () => {
     await fill(page, '[role="dialog"] input[name="email"]', "e2e@example.com");
     await clickText(page, "Add supplier", '[role="dialog"] button[type="submit"]');
     await waitForText(page, "Supplier created");
-    await clickText(page, `Delete ${SUPPLIER_NAME}`);
-    await clickText(page, "Delete", '[role="dialog"] button');
-    await waitForText(page, `"${SUPPLIER_NAME}" deleted`);
+    await clickText(page, `Archive ${SUPPLIER_NAME}`);
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Reason is required");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E test supplier");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `"${SUPPLIER_NAME}" archived`);
+    await waitForNoText(page, SUPPLIER_NAME);
+  });
+
+  await step("Archived supplier is not offered in the purchase order form", async () => {
+    await open("/purchase-orders/new");
+    await page.waitForSelector('select[name="supplier"]');
+    const options = await page.$eval('select[name="supplier"]', (s) => [...s.options].map((o) => o.text));
+    assert(!options.some((text) => text.includes(SUPPLIER_NAME)), "archived supplier appears in the dropdown");
   });
 
   // ---------------------------------------------------------------- Users
   await step("Users page lists accounts; own controls are disabled", async () => {
     await open("/users");
-    await waitForText(page, "staff@stockwise.com");
+    await waitForText(page, "staff@stockwise.test");
     const ownSelectDisabled = await page.$eval('select[aria-label="Role for Admin User"]', (s) => s.disabled);
     assert(ownSelectDisabled, "admin can change their own role");
+  });
+
+  await step("Admin adds a user (with validation) and edits their role", async () => {
+    await clickText(page, "Add user");
+    await page.waitForSelector('[role="dialog"] input[name="name"]', { visible: true });
+    await clickText(page, "Add user", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Name is required");
+    await fill(page, '[role="dialog"] input[name="name"]', NEW_USER_NAME);
+    await fill(page, '[role="dialog"] input[name="email"]', NEW_USER_EMAIL);
+    await fill(page, '[role="dialog"] input[name="password"]', "Temp1234");
+    await clickText(page, "Add user", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `${NEW_USER_NAME} can now sign in`);
+    await clickText(page, `Edit ${NEW_USER_NAME}`);
+    await page.waitForSelector('[role="dialog"] select[name="role"]', { visible: true });
+    await page.select('[role="dialog"] select[name="role"]', "admin");
+    await clickText(page, "Save changes", '[role="dialog"] button');
+    await waitForText(page, `${NEW_USER_NAME} was updated`);
+    await page.waitForFunction(
+      (name) => document.querySelector(`select[aria-label="Role for ${name}"]`)?.value === "admin",
+      { timeout: 15000 },
+      NEW_USER_NAME
+    );
+  });
+
+  // ---------------------------------------------------------------- Purchase orders (admin)
+  await step("PO form validation, then admin requests a PO", async () => {
+    await open("/purchase-orders/new");
+    await waitForText(page, "New purchase order");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "Please choose a supplier");
+    await waitForText(page, "Please choose a product");
+    await selectByText('select[name="supplier"]', "Manila Hardware Trading");
+    await selectByText('select[name="items[0].product"]', "Claw Hammer 16 oz");
+    const unitCost = await page.$eval('input[name="items[0].unitCost"]', (el) => el.value);
+    assert(unitCost === "185", `unit cost not pre-filled from cost price (got ${unitCost})`);
+    await fill(page, 'input[name="items[0].quantity"]', "12");
+    await waitForText(page, "Total ₱2,220.00");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await page.waitForFunction(() => /\/purchase-orders\/[a-f0-9]{24}$/.test(location.pathname), { timeout: 15000 });
+    poUrl = new URL(page.url()).pathname;
+    await waitForText(page, "Requested by");
+    poNumber = await page.$eval("h1", (el) => el.innerText.trim());
+    assert(/^PO-\d{4}-\d{4}$/.test(poNumber), `unexpected PO number ${poNumber}`);
+  });
+
+  await step("Admin approves the PO; the timeline records it", async () => {
+    await clickText(page, "Approve");
+    await clickText(page, "Approve", '[role="dialog"] button');
+    await waitForText(page, `${poNumber} approved`);
+    await waitForText(page, "Approved by");
+    await waitForText(page, "Mark as received");
+  });
+
+  await step("Archiving a product on an open PO is blocked", async () => {
+    await open("/products?search=Claw");
+    await clickText(page, "Archive Claw Hammer");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Should be blocked");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `it is on open purchase order(s) ${poNumber}`);
+    await clickText(page, "Cancel", '[role="dialog"] button');
+  });
+
+  await step("PO list status tabs filter by status", async () => {
+    await open("/purchase-orders");
+    await clickText(page, "Approved", '[role="tab"]');
+    await page.waitForFunction(() => location.search.includes("status=Approved"));
+    await waitForText(page, poNumber);
+    await page.waitForFunction(
+      () => {
+        const rows = [...document.querySelectorAll("table tbody tr")].map((tr) => tr.innerText);
+        return rows.length > 0 && rows.every((text) => text.includes("Approved"));
+      },
+      { timeout: 15000 }
+    );
+  });
+
+  await step("Dashboard shows purchase order counts", async () => {
+    await open("/");
+    await waitForText(page, "Purchase orders");
+    assert(await page.$('a[aria-label^="Approved purchase orders: "]'), "PO status tiles missing");
   });
 
   // ---------------------------------------------------------------- Mobile
   await step("Mobile 375px: no horizontal scroll and hamburger drawer works", async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-    for (const path of ["/", "/products", "/movements", "/categories", "/suppliers", "/users", productUrl]) {
+    for (const path of [
+      "/",
+      "/products",
+      "/movements",
+      "/categories",
+      "/suppliers",
+      "/users",
+      "/profile",
+      productUrl,
+    ]) {
       await open(path);
       assert(!(await hasHorizontalOverflow(page)), `horizontal overflow on ${path}`);
     }
@@ -288,12 +463,59 @@ const run = async () => {
   });
 
   // ---------------------------------------------------------------- Cleanup as admin
-  await step("Admin deletes the test product", async () => {
+  await step("Admin archives a user, who then disappears from the Users list", async () => {
+    await open("/users");
+    await clickText(page, `Archive ${NEW_USER_NAME}`);
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Left the company");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `${NEW_USER_NAME}'s account was archived`);
+    await waitForNoText(page, NEW_USER_EMAIL);
+    const ownArchiveDisabled = await page.$eval('button[aria-label="Archive Admin User"]', (b) => b.disabled);
+    assert(ownArchiveDisabled, "admin can archive their own account");
+  });
+
+  await step("Admin archives the test product: hidden from search, banner on its page", async () => {
     await open(productUrl);
-    await clickText(page, "Delete product");
-    await clickText(page, "Delete", '[role="dialog"] button');
+    await clickText(page, "Archive product");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E cleanup");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
     await page.waitForFunction(() => location.pathname === "/products", { timeout: 15000 });
-    await waitForText(page, "deleted");
+    await waitForText(page, "archived");
+    await open(`/products?search=${SKU}`);
+    await waitForText(page, "No matching products");
+    await open(productUrl);
+    await waitForText(page, "This product is archived.");
+    const stockButtons = await page.$$eval(
+      "main button",
+      (buttons) => buttons.filter((b) => /^Stock (in|out)$/.test(b.innerText.trim())).length
+    );
+    assert(stockButtons === 0, "stock in/out buttons shown for an archived product");
+  });
+
+  await step("Archive page: view and restore the product, then archive it again", async () => {
+    await open("/archive");
+    await waitForText(page, PRODUCT_NAME);
+    await waitForText(page, "E2E cleanup");
+    await clickText(page, `View ${PRODUCT_NAME}`);
+    await waitForText(page, "Archive history");
+    await clickText(page, "Restore", '[role="dialog"] button');
+    await waitForText(page, `Restore ${PRODUCT_NAME}?`);
+    await clickText(page, "Restore", '[role="dialog"] button');
+    await waitForText(page, `${PRODUCT_NAME} restored`);
+    await open(`/products?search=${SKU}`);
+    await waitForText(page, "1 product found");
+    await clickText(page, `Archive ${PRODUCT_NAME}`);
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "E2E cleanup");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "No matching products");
+  });
+
+  await step("Archive page tabs list archived users and suppliers", async () => {
+    await open("/archive?type=users");
+    await waitForText(page, NEW_USER_NAME);
+    await waitForText(page, "Left the company");
+    await clickText(page, "Suppliers", '[role="tab"]');
+    await waitForText(page, SUPPLIER_NAME);
   });
 
   // ---------------------------------------------------------------- Staff
@@ -305,6 +527,65 @@ const run = async () => {
     await open("/products");
     await waitForText(page, "products found");
     assert(!(await page.evaluate(() => document.body.innerText.includes("Add product"))), "staff sees Add product");
+  });
+
+  await step("Staff edits their profile name; wrong current password is rejected", async () => {
+    await open("/profile");
+    await waitForText(page, "Personal information");
+    await fill(page, 'input[name="name"]', "Staff Member Renamed");
+    await clickText(page, "Save changes", 'button[type="submit"]');
+    await waitForText(page, "Profile updated");
+    const header = await page.$eval("header", (el) => el.innerText);
+    assert(header.includes("Staff Member Renamed"), "header did not show the new name");
+    await fill(page, 'input[name="name"]', "Staff User");
+    await clickText(page, "Save changes", 'button[type="submit"]');
+    await waitForText(page, "Profile updated");
+    await fill(page, 'input[name="currentPassword"]', "WrongPass1");
+    await fill(page, 'input[name="newPassword"]', "NewStaff123");
+    await fill(page, 'input[name="confirmPassword"]', "NewStaff123");
+    await clickText(page, "Change password", 'button[type="submit"]');
+    await waitForText(page, "Current password is incorrect");
+  });
+
+  await step("Staff cannot approve, but marks the approved PO received (stock IN)", async () => {
+    await open(poUrl);
+    await waitForText(page, "Mark as received");
+    assert(!(await page.evaluate(() => document.body.innerText.includes("Reject"))), "staff sees Reject");
+    await clickText(page, "Mark as received");
+    await clickText(page, "Mark as received", '[role="dialog"] button');
+    await waitForText(page, "added to stock");
+    await waitForText(page, "Received into stock by");
+  });
+
+  await step("Receiving added a Purchase movement linked to the PO", async () => {
+    await open("/products?search=Claw");
+    await waitForText(page, "Claw Hammer 16 oz");
+    await page.evaluate(() =>
+      [...document.querySelectorAll("table a")].find((a) => a.innerText.includes("Claw Hammer")).click()
+    );
+    await waitForText(page, "Movement history");
+    await waitForText(page, poNumber);
+    await waitForText(page, "46");
+  });
+
+  await step("Staff requests a PO and cancels it with a reason", async () => {
+    await open("/purchase-orders/new");
+    await selectByText('select[name="supplier"]', "Cebu Builders");
+    await selectByText('select[name="items[0].product"]', "Portland Cement");
+    await fill(page, 'input[name="items[0].quantity"]', "40");
+    await clickText(page, "Add item");
+    await selectByText('select[name="items[1].product"]', "Portland Cement");
+    await fill(page, 'input[name="items[1].quantity"]', "1");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "This product is already on the order");
+    await clickText(page, "Remove item 2");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "Waiting for an admin to approve");
+    await clickText(page, "Cancel request");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Ordered by phone instead");
+    await clickText(page, "Cancel request", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Ordered by phone instead");
+    await waitForText(page, "Cancelled by");
   });
 
   await step("Staff opening an admin URL is redirected", async () => {
@@ -330,6 +611,20 @@ const run = async () => {
     await waitForText(page, "LED Bulb 9W Daylight now has");
   });
 
+  await step("A sale that leaves a product low emails the admins (once)", async () => {
+    await open("/movements");
+    await clickText(page, "Record movement");
+    await page.waitForSelector('[role="dialog"] select[name="productId"]');
+    await clickText(page, "Stock out", '[role="dialog"] button');
+    await selectByText('[role="dialog"] select[name="productId"]', "Convenience Outlet Duplex");
+    await fill(page, '[role="dialog"] input[name="quantity"]', "1");
+    await clickText(page, "Record stock out", '[role="dialog"] button');
+    await waitForText(page, "Convenience Outlet Duplex is low on stock");
+    const outbox = await readFile(OUTBOX_FILE, "utf8");
+    const alerts = outbox.split("\n").filter((l) => l.includes("Stock alert: Convenience Outlet Duplex"));
+    assert(alerts.length === 1, `expected 1 alert email, found ${alerts.length}`);
+  });
+
   await step("Staff stock out above available on an out-of-stock item is rejected", async () => {
     await open("/products?status=out_of_stock");
     await waitForText(page, "Adjustable Wrench");
@@ -347,6 +642,35 @@ const run = async () => {
     await page.evaluate(() => localStorage.setItem("stockwise_token", "invalid.token.value"));
     await open("/products");
     await page.waitForFunction(() => location.pathname === "/login", { timeout: 15000 });
+  });
+
+  await step("An archived user cannot log in", async () => {
+    await resetSession(page, BASE_URL);
+    await open("/login");
+    await fill(page, 'input[name="email"]', NEW_USER_EMAIL);
+    await fill(page, 'input[name="password"]', "Temp1234");
+    await clickText(page, "Sign in", 'button[type="submit"]');
+    await waitForText(page, "This account has been archived");
+  });
+
+  await step("Admin archives the cancelled PO; it moves to the Archive page", async () => {
+    await login(page, BASE_URL, ...ADMIN);
+    await open("/purchase-orders?status=Cancelled");
+    await waitForText(page, "Cebu Builders");
+    await page.evaluate(() =>
+      [...document.querySelectorAll("table a")].find((a) => a.innerText.startsWith("PO-")).click()
+    );
+    await waitForText(page, "Cancelled by");
+    const cancelledPo = await page.$eval("h1", (el) => el.innerText.trim());
+    await clickText(page, "Archive", "main button");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Duplicate request");
+    await clickText(page, "Archive", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "This purchase order is archived.");
+    await waitForText(page, "Archived by");
+    await open(`/purchase-orders?search=${cancelledPo}`);
+    await waitForText(page, "No purchase orders match");
+    await open("/archive?type=purchase-orders");
+    await waitForText(page, cancelledPo);
   });
 
   await step("Unknown URL shows the 404 page", async () => {

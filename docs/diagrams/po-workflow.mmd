@@ -1,0 +1,18 @@
+flowchart LR
+    S(["Stock at or below<br/>reorder level<br/>(dashboard / email alert)"]) --> R
+    R["<b>Requested</b><br/>staff or admin creates PO:<br/>supplier, items, qty, unit cost"]
+    R -- "admin approves" --> A["<b>Approved</b><br/>order sent to supplier"]
+    R -- "admin rejects<br/>(reason required)" --> X["<b>Rejected</b>"]
+    R -- "requester or admin<br/>cancels" --> C["<b>Cancelled</b>"]
+    A -- "delivery arrives:<br/>staff or admin marks received" --> V["<b>Received</b> (completed)<br/>one stock IN per item<br/>(atomic $inc, reason Purchase)"]
+    V --> AR[("Archive<br/>(admin, optional)")]
+    X --> AR
+    C --> AR
+    classDef open fill:#fef3c7,stroke:#b45309,color:#78350f;
+    classDef ok fill:#d1fae5,stroke:#047857,color:#064e3b;
+    classDef bad fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d;
+    classDef info fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e;
+    class R open;
+    class A info;
+    class V ok;
+    class X,C bad;

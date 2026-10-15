@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { SessionContext } from "../context/sessionContext";
 
 /**
- * Returns `{ user, isAuthenticated, isAdmin, initializing, login, register, logout }`.
+ * Returns `{ user, isAuthenticated, isAdmin, initializing, login, register, logout, updateProfile, changePassword }`.
  * Throws if used outside <AuthProvider> so wiring mistakes fail loudly.
  */
 export default function useAuth() {

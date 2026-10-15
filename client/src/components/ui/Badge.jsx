@@ -1,10 +1,11 @@
-import { STOCK_STATUS } from "../../utils/constants";
+import { PO_STATUS, STOCK_STATUS } from "../../utils/constants";
 
 const TONES = {
   success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
   warning: "bg-amber-50 text-amber-800 ring-amber-600/30",
   danger: "bg-red-50 text-red-700 ring-red-600/20",
   primary: "bg-primary-50 text-primary-700 ring-primary-600/20",
+  info: "bg-sky-50 text-sky-700 ring-sky-600/20",
   neutral: "bg-slate-100 text-slate-700 ring-slate-500/20",
 };
 
@@ -31,4 +32,10 @@ export function StockStatusBadge({ status }) {
 /** IN (green) / OUT (red) badge for stock movements. */
 export function MovementTypeBadge({ type }) {
   return <Badge tone={type === "IN" ? "success" : "danger"}>{type === "IN" ? "Stock in" : "Stock out"}</Badge>;
+}
+
+/** Colored badge for a purchase order status. */
+export function PoStatusBadge({ status }) {
+  const config = PO_STATUS[status] ?? { label: status, tone: "neutral" };
+  return <Badge tone={config.tone}>{config.label}</Badge>;
 }

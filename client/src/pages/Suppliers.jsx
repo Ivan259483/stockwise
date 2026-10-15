@@ -1,21 +1,22 @@
-import { Mail, Pencil, Phone, Plus, Trash2, Truck } from "lucide-react";
+import { Archive, Mail, Pencil, Phone, Plus, Truck } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { deleteSupplier, getSuppliers } from "../api/suppliers";
+import { archiveRecord } from "../api/archive";
+import { getSuppliers } from "../api/suppliers";
 import SupplierFormModal from "../components/forms/SupplierFormModal";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
 import PageHeader from "../components/ui/PageHeader";
+import ReasonDialog from "../components/ui/ReasonDialog";
 import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
 
 /**
- * Suppliers page: the directory is visible to everyone, create/edit/delete to admins.
+ * Suppliers page: the directory is visible to everyone, create/edit/archive to admins.
  *
  * Unlike categories, a supplier is optional on a product, so deleting one is
  * allowed: the API removes it from its products, and the success message says
@@ -26,24 +27,20 @@ export default function Suppliers() {
   const { data: suppliers, loading, error, refetch } = useFetch(() => getSuppliers().then((body) => body.data));
   // `editing`: undefined = modal closed, null = creating, object = editing that supplier.
   const [editing, setEditing] = useState(undefined);
-  const [toDelete, setToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [toArchive, setToArchive] = useState(null);
+  const [archiving, setArchiving] = useState(false);
 
-  // Report how many products lost their supplier so the admin knows what changed.
-  const confirmDelete = async () => {
-    setDeleting(true);
+  const confirmArchive = async (reason) => {
+    setArchiving(true);
     try {
-      const body = await deleteSupplier(toDelete._id);
-      const updated = body.data.productsUpdated;
-      toast.success(
-        `"${toDelete.name}" deleted${updated ? `; ${updated} product${updated === 1 ? "" : "s"} now have no supplier` : ""}`
-      );
-      setToDelete(null);
+      await archiveRecord("suppliers", toArchive._id, reason);
+      toast.success(`"${toArchive.name}" archived`);
+      setToArchive(null);
       refetch();
     } catch {
-      // Error toast comes from the axios interceptor.
+      // Error toast comes from the axios interceptor (e.g. the supplier has open purchase orders).
     } finally {
-      setDeleting(false);
+      setArchiving(false);
     }
   };
 
@@ -77,10 +74,10 @@ export default function Suppliers() {
         <Button
           variant="ghost"
           size="icon"
-          icon={Trash2}
-          className="text-red-600 hover:bg-red-50 hover:text-red-700"
-          onClick={() => setToDelete(s)}
-          aria-label={`Delete ${s.name}`}
+          icon={Archive}
+          className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+          onClick={() => setToArchive(s)}
+          aria-label={`Archive ${s.name}`}
         />
       </div>
     );
@@ -171,19 +168,21 @@ export default function Suppliers() {
         }}
       />
 
-      <ConfirmDialog
-        open={Boolean(toDelete)}
-        title="Delete supplier?"
+      <ReasonDialog
+        open={Boolean(toArchive)}
+        title="Archive supplier?"
         message={
           <>
-            <strong className="text-slate-900">{toDelete?.name}</strong> will be permanently deleted.
-            {toDelete?.productCount > 0 &&
-              ` Its ${toDelete.productCount} product(s) will be kept but will no longer have a supplier.`}
+            <strong className="text-slate-900">{toArchive?.name}</strong> will be hidden from the supplier list and the
+            product and purchase order forms. Its products and purchase history are kept, and an admin can restore it
+            from the Archive page.
           </>
         }
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setToDelete(null)}
+        placeholder="e.g. No longer supplies the store"
+        confirmLabel="Archive"
+        loading={archiving}
+        onConfirm={confirmArchive}
+        onCancel={() => setToArchive(null)}
       />
     </>
   );

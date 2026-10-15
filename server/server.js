@@ -9,15 +9,18 @@ import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import mongoose from "mongoose";
 import morgan from "morgan";
 import connectDB from "./config/db.js";
 import dbConnect from "./middleware/dbConnect.js";
 import errorHandler from "./middleware/errorHandler.js";
 import notFound from "./middleware/notFound.js";
+import archiveRoutes from "./routes/archiveRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
+import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -55,11 +58,20 @@ app.get("/", (_req, res) => {
 
 app.use("/api", dbConnect);
 
-/** Health check. Runs after dbConnect, so a 200 also confirms the database is reachable. */
+/**
+ * Health check. Runs after dbConnect, so a 200 also confirms the database is reachable.
+ * Outside production it also names the database, which the automated tests use
+ * to refuse to run against anything other than a *_test database.
+ */
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
-    data: { status: "ok", database: "connected", environment: process.env.NODE_ENV ?? "development" },
+    data: {
+      status: "ok",
+      database: "connected",
+      environment: process.env.NODE_ENV ?? "development",
+      ...(isProduction ? {} : { databaseName: mongoose.connection.name }),
+    },
   });
 });
 
@@ -69,7 +81,9 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/archive", archiveRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

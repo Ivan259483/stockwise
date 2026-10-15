@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, BellRing } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { recordMovement } from "../../api/stock";
@@ -75,10 +75,19 @@ export default function StockMovementModal({ open, onClose, onSuccess, product =
         reason: values.reason,
         note: values.note.trim(),
       });
-      const { product: updated } = body.data;
+      const { product: updated, lowStockAlert } = body.data;
       toast.success(
         `${values.type === "IN" ? "Added" : "Removed"} ${values.quantity} ${updated.unit}. ${updated.name} now has ${formatNumber(updated.quantity)}.`
       );
+      // The API emails the admins the first time a product drops to its reorder level.
+      if (lowStockAlert) {
+        toast(
+          `${updated.name} is ${updated.quantity <= 0 ? "out of stock" : "low on stock"}. ${
+            lowStockAlert.delivered ? "The admins were emailed." : "A stock alert was recorded for the admins."
+          }`,
+          { icon: <BellRing className="size-5 shrink-0 text-amber-600" aria-hidden="true" />, duration: 6000 }
+        );
+      }
       onSuccess(body.data);
     } catch (error) {
       setErrors(getFieldErrors(error));

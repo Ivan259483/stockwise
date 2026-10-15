@@ -9,6 +9,9 @@ import { PageLoader } from "./components/ui/Spinner";
 // Each page is its own chunk, so the login screen does not download the charts library.
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Products = lazy(() => import("./pages/Products"));
 const ProductForm = lazy(() => import("./pages/ProductForm"));
@@ -17,13 +20,18 @@ const StockMovements = lazy(() => import("./pages/StockMovements"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const Users = lazy(() => import("./pages/Users"));
+const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
+const PurchaseOrderForm = lazy(() => import("./pages/PurchaseOrderForm"));
+const PurchaseOrderDetails = lazy(() => import("./pages/PurchaseOrderDetails"));
+const Archive = lazy(() => import("./pages/Archive"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
  * Route map:
- * - public (signed-out only): /login, /register
- * - any signed-in user: dashboard, products (read), product details, movements, categories, suppliers
- * - admin only: product create/edit, users
+ * - public (signed-out only): /login, /register, /forgot-password, /reset-password
+ * - any signed-in user: dashboard, products (read), product details, movements, purchase orders,
+ *   categories, suppliers, profile
+ * - admin only: product create/edit, users, archive
  */
 export default function App() {
   return (
@@ -38,6 +46,8 @@ export default function App() {
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
@@ -46,13 +56,18 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="products/:id" element={<ProductDetails />} />
             <Route path="movements" element={<StockMovements />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="purchase-orders/new" element={<PurchaseOrderForm />} />
+            <Route path="purchase-orders/:id" element={<PurchaseOrderDetails />} />
             <Route path="categories" element={<Categories />} />
             <Route path="suppliers" element={<Suppliers />} />
+            <Route path="profile" element={<Profile />} />
 
             <Route element={<AdminRoute />}>
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/:id/edit" element={<ProductForm />} />
               <Route path="users" element={<Users />} />
+              <Route path="archive" element={<Archive />} />
             </Route>
           </Route>
         </Route>

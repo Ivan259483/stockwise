@@ -20,7 +20,11 @@ export const protect = asyncHandler(async (req, _res, next) => {
 
   const user = await User.findById(payload.id);
   if (!user) throw ApiError.unauthorized("User no longer exists");
+  if (user.archived) throw ApiError.unauthorized("Your account has been archived");
   if (!user.isActive) throw ApiError.unauthorized("Your account has been deactivated");
+  if (user.isTokenOutdated(payload)) {
+    throw ApiError.unauthorized("Your password was changed. Please log in again.");
+  }
 
   req.user = user;
   next();

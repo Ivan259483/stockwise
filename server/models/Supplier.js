@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import archivable from "./plugins/archivable.js";
 
 /** A vendor the store buys stock from. Only `name` is mandatory. */
 const supplierSchema = new mongoose.Schema(
@@ -23,6 +24,8 @@ const supplierSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+supplierSchema.plugin(archivable);
 
 supplierSchema.set("toJSON", { versionKey: false });
 
