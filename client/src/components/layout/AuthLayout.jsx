@@ -1,9 +1,11 @@
-import { BarChart3, Bell, ShieldCheck } from "lucide-react";
+import { BarChart3, Bell, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { STORE_NAME } from "../../utils/constants";
 import Logo from "../ui/Logo";
 
 const HIGHLIGHTS = [
   { icon: BarChart3, text: "Real-time stock levels and value in pesos" },
   { icon: Bell, text: "Low-stock alerts before you run out" },
+  { icon: ClipboardCheck, text: "Purchase orders from request to delivery" },
   { icon: ShieldCheck, text: "Every stock change recorded with who and when" },
 ];
 
@@ -29,9 +31,12 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
           <Logo inverted />
         </div>
         <div className="relative">
-          <h2 className="text-3xl leading-tight font-bold text-white">Stop guessing what&apos;s on your shelves.</h2>
+          <p className="text-sm font-semibold tracking-wide text-primary-300 uppercase">{STORE_NAME}</p>
+          <h2 className="mt-2 text-3xl leading-tight font-bold text-white">
+            Stop guessing what&apos;s on your shelves.
+          </h2>
           <p className="mt-3 max-w-md text-slate-300">
-            StockWise replaces the paper logbook for hardware stores, sari-sari stores and supply shops.
+            StockWise replaces the paper logbook and the notebook of supplier orders at {STORE_NAME}.
           </p>
           <ul className="mt-8 space-y-4">
             {HIGHLIGHTS.map(({ icon: Icon, text }) => (
@@ -44,7 +49,9 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-slate-500">Integrative Programming and Technologies · INF238</p>
+        <p className="relative text-sm text-slate-500">
+          Integrative Programming and Technologies · System Integration and Architecture
+        </p>
       </aside>
 
       <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
@@ -52,6 +59,9 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
+          <p className="mb-3 text-center text-sm font-semibold text-slate-600 lg:text-left" data-testid="store-name">
+            {STORE_NAME}
+          </p>
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
             <p className="mt-1 text-sm text-slate-500">{subtitle}</p>

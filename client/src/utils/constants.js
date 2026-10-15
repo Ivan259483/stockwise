@@ -2,6 +2,14 @@
 
 export const APP_NAME = "StockWise";
 
+/** The sample client organization (shown as text in the header and on the login page; no logo). */
+export const STORE_NAME = "Santos Family Hardware";
+
+export const ROLE_OPTIONS = [
+  { value: "staff", label: "Staff" },
+  { value: "admin", label: "Admin" },
+];
+
 export const UNITS = ["pcs", "box", "kg", "L", "pack"];
 
 export const IN_REASONS = ["Purchase", "Return", "Adjustment", "Other"];

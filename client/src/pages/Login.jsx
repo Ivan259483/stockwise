@@ -84,6 +84,11 @@ export default function Login() {
           placeholder="••••••••"
           required
         />
+        <div className="-mt-1 text-right">
+          <Link to="/forgot-password" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+            Forgot password?
+          </Link>
+        </div>
         <Button type="submit" icon={LogIn} loading={submitting} className="w-full">
           Sign in
         </Button>

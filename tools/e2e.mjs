@@ -1,16 +1,22 @@
 /**
  * Headless-Chrome end-to-end test of the StockWise web app, for both roles.
  *
- * Covers login (including validation and wrong password), dashboard, product
- * CRUD with client- and server-side validation errors, stock in, an
- * insufficient stock out, categories, suppliers, users, role restrictions,
- * the 375px mobile layout, refreshing a nested route, and session expiry.
- * Test records use a unique suffix and are deleted at the end.
+ * Covers login (including validation and wrong password), password recovery
+ * with the emailed code, the profile page, dashboard, product CRUD with client-
+ * and server-side validation errors, stock in, an insufficient stock out,
+ * categories, suppliers, user management, role restrictions, the 375px mobile
+ * layout, refreshing a nested route, and session expiry.
  *
- * Usage: node e2e.mjs [baseUrl]   (default http://localhost:5173)
+ * It only runs against the TEST stack (client `npm run dev:test` on :5174, API
+ * `npm run dev:test` on :5051 with the stockwise_test database): it checks the
+ * API's database name first and aborts unless it ends in "_test". Reset codes
+ * are read from the test API's mail outbox (server/tmp/outbox.jsonl).
+ *
+ * Usage: node e2e.mjs [baseUrl] [apiUrl]   (defaults http://localhost:5174, http://localhost:5051)
+ * Simplest: node run-tests.mjs (seeds, starts both servers, runs smoke + E2E).
  * A failing step saves a screenshot in tools/e2e-failures/.
  */
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import {
   clickText,
   DESKTOP,
@@ -23,14 +29,19 @@ import {
   waitForText,
 } from "./lib/browser.mjs";
 
-const BASE_URL = (process.argv[2] ?? process.env.BASE_URL ?? "http://localhost:5173").replace(/\/$/, "");
-const ADMIN = ["admin@stockwise.com", "Admin123!"];
-const STAFF = ["staff@stockwise.com", "Staff123!"];
+const BASE_URL = (process.argv[2] ?? process.env.BASE_URL ?? "http://localhost:5174").replace(/\/$/, "");
+const API_URL = (process.argv[3] ?? process.env.API_URL ?? "http://localhost:5051").replace(/\/$/, "");
+const OUTBOX_FILE = new URL("../server/tmp/outbox.jsonl", import.meta.url);
+const ADMIN = ["admin@stockwise.test", "Admin123!"];
+const STAFF = ["staff@stockwise.test", "Staff123!"];
+const RECOVERY_EMAIL = "e2e.recovery@stockwise.test";
 const SUFFIX = Date.now().toString(36).toUpperCase().slice(-5);
 const SKU = `E2E-${SUFFIX}`;
 const PRODUCT_NAME = `E2E Test Product ${SUFFIX}`;
 const CATEGORY_NAME = `E2E Category ${SUFFIX}`;
 const SUPPLIER_NAME = `E2E Supplier ${SUFFIX}`;
+const NEW_USER_NAME = `E2E User ${SUFFIX}`;
+const NEW_USER_EMAIL = `e2e.user.${SUFFIX.toLowerCase()}@stockwise.test`;
 
 const results = [];
 let page;
@@ -56,8 +67,29 @@ const assert = (condition, message) => {
 /** Opens a page via the address bar (full reload), like a user refreshing. */
 const open = (path) => page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle0" });
 
+/** The 6-digit code in the latest reset email the test API "sent" to `email`. */
+const latestResetCode = async (email) => {
+  const text = await readFile(OUTBOX_FILE, "utf8").catch(() => "");
+  const messages = text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((message) => message.to.includes(email));
+  return messages.at(-1)?.text.match(/\b(\d{6})\b/)?.[1] ?? null;
+};
+
+/** Refuses to run unless the API is connected to a *_test database. */
+const assertTestDatabase = async () => {
+  const health = await fetch(`${API_URL}/api/health`).then((r) => r.json());
+  const name = health?.data?.databaseName ?? "";
+  if (!name.endsWith("_test")) {
+    throw new Error(`API at ${API_URL} uses database "${name || "unknown"}"; E2E only runs against a *_test database`);
+  }
+};
+
 const run = async () => {
-  console.log(`StockWise E2E → ${BASE_URL}\n`);
+  console.log(`StockWise E2E → ${BASE_URL} (API ${API_URL})\n`);
+  await assertTestDatabase();
   const browser = await launch();
   page = await browser.newPage();
   await page.setViewport(DESKTOP);
@@ -77,6 +109,35 @@ const run = async () => {
     await fill(page, 'input[name="password"]', "WrongPass1");
     await clickText(page, "Sign in", 'button[type="submit"]');
     await waitForText(page, "Invalid email or password");
+  });
+
+  await step("Login page shows the store name and a Forgot password link", async () => {
+    await open("/login");
+    await waitForText(page, "Santos Family Hardware");
+    await waitForText(page, "Forgot password?");
+  });
+
+  await step("Password recovery: emailed 6-digit code resets the password", async () => {
+    await clickText(page, "Forgot password?", "a");
+    await waitForText(page, "Forgot your password?");
+    await clickText(page, "Send reset code", 'button[type="submit"]');
+    await waitForText(page, "Email is required");
+    await fill(page, 'input[name="email"]', RECOVERY_EMAIL);
+    await clickText(page, "Send reset code", 'button[type="submit"]');
+    await waitForText(page, "If an account with that email exists");
+    const code = await latestResetCode(RECOVERY_EMAIL);
+    assert(code, "no reset code found in the test outbox");
+    await fill(page, 'input[name="code"]', code === "000000" ? "111111" : "000000");
+    await fill(page, 'input[name="password"]', "Recovered123");
+    await fill(page, 'input[name="confirmPassword"]', "Recovered123");
+    await clickText(page, "Reset password", 'button[type="submit"]');
+    await waitForText(page, "attempts left");
+    await fill(page, 'input[name="code"]', code);
+    await clickText(page, "Reset password", 'button[type="submit"]');
+    await page.waitForFunction(() => location.pathname === "/login", { timeout: 15000 });
+    await waitForText(page, "Your password has been reset");
+    await login(page, BASE_URL, RECOVERY_EMAIL, "Recovered123");
+    await resetSession(page, BASE_URL);
   });
 
   await step("Protected page redirects to /login when signed out", async () => {
@@ -263,15 +324,46 @@ const run = async () => {
   // ---------------------------------------------------------------- Users
   await step("Users page lists accounts; own controls are disabled", async () => {
     await open("/users");
-    await waitForText(page, "staff@stockwise.com");
+    await waitForText(page, "staff@stockwise.test");
     const ownSelectDisabled = await page.$eval('select[aria-label="Role for Admin User"]', (s) => s.disabled);
     assert(ownSelectDisabled, "admin can change their own role");
+  });
+
+  await step("Admin adds a user (with validation) and edits their role", async () => {
+    await clickText(page, "Add user");
+    await page.waitForSelector('[role="dialog"] input[name="name"]', { visible: true });
+    await clickText(page, "Add user", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Name is required");
+    await fill(page, '[role="dialog"] input[name="name"]', NEW_USER_NAME);
+    await fill(page, '[role="dialog"] input[name="email"]', NEW_USER_EMAIL);
+    await fill(page, '[role="dialog"] input[name="password"]', "Temp1234");
+    await clickText(page, "Add user", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, `${NEW_USER_NAME} can now sign in`);
+    await clickText(page, `Edit ${NEW_USER_NAME}`);
+    await page.waitForSelector('[role="dialog"] select[name="role"]', { visible: true });
+    await page.select('[role="dialog"] select[name="role"]', "admin");
+    await clickText(page, "Save changes", '[role="dialog"] button');
+    await waitForText(page, `${NEW_USER_NAME} was updated`);
+    await page.waitForFunction(
+      (name) => document.querySelector(`select[aria-label="Role for ${name}"]`)?.value === "admin",
+      { timeout: 15000 },
+      NEW_USER_NAME
+    );
   });
 
   // ---------------------------------------------------------------- Mobile
   await step("Mobile 375px: no horizontal scroll and hamburger drawer works", async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-    for (const path of ["/", "/products", "/movements", "/categories", "/suppliers", "/users", productUrl]) {
+    for (const path of [
+      "/",
+      "/products",
+      "/movements",
+      "/categories",
+      "/suppliers",
+      "/users",
+      "/profile",
+      productUrl,
+    ]) {
       await open(path);
       assert(!(await hasHorizontalOverflow(page)), `horizontal overflow on ${path}`);
     }
@@ -305,6 +397,24 @@ const run = async () => {
     await open("/products");
     await waitForText(page, "products found");
     assert(!(await page.evaluate(() => document.body.innerText.includes("Add product"))), "staff sees Add product");
+  });
+
+  await step("Staff edits their profile name; wrong current password is rejected", async () => {
+    await open("/profile");
+    await waitForText(page, "Personal information");
+    await fill(page, 'input[name="name"]', "Staff Member Renamed");
+    await clickText(page, "Save changes", 'button[type="submit"]');
+    await waitForText(page, "Profile updated");
+    const header = await page.$eval("header", (el) => el.innerText);
+    assert(header.includes("Staff Member Renamed"), "header did not show the new name");
+    await fill(page, 'input[name="name"]', "Staff User");
+    await clickText(page, "Save changes", 'button[type="submit"]');
+    await waitForText(page, "Profile updated");
+    await fill(page, 'input[name="currentPassword"]', "WrongPass1");
+    await fill(page, 'input[name="newPassword"]', "NewStaff123");
+    await fill(page, 'input[name="confirmPassword"]', "NewStaff123");
+    await clickText(page, "Change password", 'button[type="submit"]');
+    await waitForText(page, "Current password is incorrect");
   });
 
   await step("Staff opening an admin URL is redirected", async () => {

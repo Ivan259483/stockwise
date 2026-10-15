@@ -1,4 +1,4 @@
-import { ArrowLeftRight, LayoutDashboard, Package, Tags, Truck, Users } from "lucide-react";
+import { ArrowLeftRight, CircleUser, LayoutDashboard, Package, Tags, Truck, Users } from "lucide-react";
 
 /**
  * Sidebar links. `adminOnly` links are hidden from staff (the routes are also
@@ -11,4 +11,5 @@ export const NAV_ITEMS = [
   { to: "/categories", label: "Categories", icon: Tags },
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/users", label: "Users", icon: Users, adminOnly: true },
+  { to: "/profile", label: "My Profile", icon: CircleUser },
 ];

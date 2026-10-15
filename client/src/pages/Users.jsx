@@ -1,7 +1,8 @@
-import { Trash2, Users as UsersIcon } from "lucide-react";
+import { Pencil, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { deleteUser, getUsers, updateUser } from "../api/users";
+import UserFormModal from "../components/forms/UserFormModal";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -12,12 +13,8 @@ import PageHeader from "../components/ui/PageHeader";
 import Table, { TableSkeleton } from "../components/ui/Table";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
+import { ROLE_OPTIONS } from "../utils/constants";
 import { formatDate } from "../utils/formatters";
-
-const ROLE_OPTIONS = [
-  { value: "staff", label: "Staff" },
-  { value: "admin", label: "Admin" },
-];
 
 /**
  * Accessible on/off switch for the "active" flag.
@@ -46,7 +43,8 @@ function Toggle({ checked, onChange, disabled, label }) {
 /**
  * Users page (admin only, guarded by AdminRoute and the API).
  *
- * Admins change roles, activate or deactivate accounts, and delete them.
+ * Admins add users, edit their name, email and role, activate or deactivate
+ * accounts, and delete them.
  * Deactivating is the safer option: the person can no longer sign in, but the
  * account and its history stay. The controls for your own account are disabled
  * so an admin can never lock themselves out (the API enforces this too).
@@ -58,6 +56,8 @@ export default function Users() {
   const [pendingId, setPendingId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  // `editing`: undefined = form closed, null = adding a user, object = editing that user.
+  const [editing, setEditing] = useState(undefined);
 
   /** Sends a PATCH and refreshes the list; the row is disabled while saving. */
   // Role and status changes save immediately (no Save button) and then reload the list.
@@ -127,16 +127,19 @@ export default function Users() {
     </div>
   );
 
-  const deleteButton = (u) => (
-    <Button
-      variant="ghost"
-      size="icon"
-      icon={Trash2}
-      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-      disabled={isSelf(u)}
-      onClick={() => setToDelete(u)}
-      aria-label={`Delete ${u.name}`}
-    />
+  const rowActions = (u) => (
+    <div className="flex justify-end gap-1">
+      <Button variant="ghost" size="icon" icon={Pencil} onClick={() => setEditing(u)} aria-label={`Edit ${u.name}`} />
+      <Button
+        variant="ghost"
+        size="icon"
+        icon={Trash2}
+        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+        disabled={isSelf(u)}
+        onClick={() => setToDelete(u)}
+        aria-label={`Delete ${u.name}`}
+      />
+    </div>
   );
 
   const nameCell = (u) => (
@@ -155,14 +158,14 @@ export default function Users() {
     { key: "role", header: "Role", render: roleSelect },
     { key: "status", header: "Status", render: activeToggle },
     { key: "joined", header: "Joined", className: "whitespace-nowrap", render: (u) => formatDate(u.createdAt) },
-    { key: "actions", header: "Actions", align: "right", render: deleteButton },
+    { key: "actions", header: "Actions", align: "right", render: rowActions },
   ];
 
   const renderMobileCard = (u) => (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         {nameCell(u)}
-        {deleteButton(u)}
+        {rowActions(u)}
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {roleSelect(u)}
@@ -175,7 +178,12 @@ export default function Users() {
     <>
       <PageHeader
         title="Users"
-        description="Promote staff to admin, deactivate accounts that should no longer sign in, or remove them."
+        description="Add accounts, edit names, emails and roles, or deactivate accounts that should no longer sign in."
+        actions={
+          <Button icon={UserPlus} onClick={() => setEditing(null)}>
+            Add user
+          </Button>
+        }
       />
 
       <Card>
@@ -190,6 +198,17 @@ export default function Users() {
           <Table columns={columns} rows={users} caption="Users" renderMobileCard={renderMobileCard} />
         )}
       </Card>
+
+      <UserFormModal
+        open={editing !== undefined}
+        user={editing}
+        isSelf={Boolean(editing) && isSelf(editing)}
+        onClose={() => setEditing(undefined)}
+        onSaved={() => {
+          setEditing(undefined);
+          refetch();
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(toDelete)}

@@ -9,6 +9,9 @@ import { PageLoader } from "./components/ui/Spinner";
 // Each page is its own chunk, so the login screen does not download the charts library.
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Products = lazy(() => import("./pages/Products"));
 const ProductForm = lazy(() => import("./pages/ProductForm"));
@@ -21,8 +24,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
  * Route map:
- * - public (signed-out only): /login, /register
- * - any signed-in user: dashboard, products (read), product details, movements, categories, suppliers
+ * - public (signed-out only): /login, /register, /forgot-password, /reset-password
+ * - any signed-in user: dashboard, products (read), product details, movements, categories, suppliers, profile
  * - admin only: product create/edit, users
  */
 export default function App() {
@@ -38,6 +41,8 @@ export default function App() {
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
@@ -48,6 +53,7 @@ export default function App() {
             <Route path="movements" element={<StockMovements />} />
             <Route path="categories" element={<Categories />} />
             <Route path="suppliers" element={<Suppliers />} />
+            <Route path="profile" element={<Profile />} />
 
             <Route element={<AdminRoute />}>
               <Route path="products/new" element={<ProductForm />} />
