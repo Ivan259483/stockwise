@@ -147,6 +147,29 @@ export const validateMovement = ({ productId, quantity, reason }) => {
 };
 
 /**
+ * New purchase order: a supplier and at least one complete item row, with no
+ * product listed twice. Errors use the API's field names (items[0].quantity).
+ *
+ * @param {{ supplier: string, items: Array<{ product: string, quantity: string, unitCost: string }> }} values
+ */
+export const validatePurchaseOrder = ({ supplier, items }) => {
+  const errors = {};
+  if (isBlank(supplier)) errors.supplier = "Please choose a supplier";
+  if (items.length === 0) errors.items = "Add at least one item";
+  const seen = new Set();
+  items.forEach((item, index) => {
+    if (isBlank(item.product)) errors[`items[${index}].product`] = "Please choose a product";
+    else if (seen.has(item.product)) errors[`items[${index}].product`] = "This product is already on the order";
+    seen.add(item.product);
+    if (!isNonNegativeInteger(item.quantity) || Number(item.quantity) < 1) {
+      errors[`items[${index}].quantity`] = "Whole number, at least 1";
+    }
+    if (!isNonNegativeNumber(item.unitCost)) errors[`items[${index}].unitCost`] = "Enter 0 or more";
+  });
+  return errors;
+};
+
+/**
  * Checks a selected image file before it is read into a data URL.
  * @param {File} file
  * @returns {string|null} Error message, or null when the file is acceptable.

@@ -20,12 +20,16 @@ const StockMovements = lazy(() => import("./pages/StockMovements"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const Users = lazy(() => import("./pages/Users"));
+const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
+const PurchaseOrderForm = lazy(() => import("./pages/PurchaseOrderForm"));
+const PurchaseOrderDetails = lazy(() => import("./pages/PurchaseOrderDetails"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
  * Route map:
  * - public (signed-out only): /login, /register, /forgot-password, /reset-password
- * - any signed-in user: dashboard, products (read), product details, movements, categories, suppliers, profile
+ * - any signed-in user: dashboard, products (read), product details, movements, purchase orders,
+ *   categories, suppliers, profile
  * - admin only: product create/edit, users
  */
 export default function App() {
@@ -51,6 +55,9 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="products/:id" element={<ProductDetails />} />
             <Route path="movements" element={<StockMovements />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="purchase-orders/new" element={<PurchaseOrderForm />} />
+            <Route path="purchase-orders/:id" element={<PurchaseOrderDetails />} />
             <Route path="categories" element={<Categories />} />
             <Route path="suppliers" element={<Suppliers />} />
             <Route path="profile" element={<Profile />} />

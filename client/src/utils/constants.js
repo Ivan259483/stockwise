@@ -27,6 +27,16 @@ export const STOCK_STATUS = {
   out_of_stock: { label: "Out of stock", tone: "danger" },
 };
 
+/** Purchase order statuses in workflow order, with their badge colors. */
+export const PO_STATUS = {
+  Requested: { label: "Requested", tone: "warning" },
+  Approved: { label: "Approved", tone: "info" },
+  Received: { label: "Received", tone: "success" },
+  Rejected: { label: "Rejected", tone: "danger" },
+  Cancelled: { label: "Cancelled", tone: "neutral" },
+};
+export const PO_STATUSES = Object.keys(PO_STATUS);
+
 export const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "in_stock", label: "In stock" },

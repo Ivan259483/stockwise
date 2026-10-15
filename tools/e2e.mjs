@@ -64,6 +64,18 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 
+/** Selects the first <option> whose text starts with `text` in the <select> matching `selector`. */
+const selectByText = async (selector, text) => {
+  await page.waitForFunction(
+    (sel, t) => [...(document.querySelector(sel)?.options ?? [])].some((o) => o.text.startsWith(t)),
+    { timeout: 15000 },
+    selector,
+    text
+  );
+  const value = await page.$eval(selector, (s, t) => [...s.options].find((o) => o.text.startsWith(t)).value, text);
+  await page.select(selector, value);
+};
+
 /** Opens a page via the address bar (full reload), like a user refreshing. */
 const open = (path) => page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle0" });
 
@@ -94,6 +106,8 @@ const run = async () => {
   page = await browser.newPage();
   await page.setViewport(DESKTOP);
   let productUrl = "";
+  let poUrl = "";
+  let poNumber = "";
 
   // ---------------------------------------------------------------- Auth
   await step("Login form shows inline errors when empty", async () => {
@@ -351,6 +365,53 @@ const run = async () => {
     );
   });
 
+  // ---------------------------------------------------------------- Purchase orders (admin)
+  await step("PO form validation, then admin requests a PO", async () => {
+    await open("/purchase-orders/new");
+    await waitForText(page, "New purchase order");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "Please choose a supplier");
+    await waitForText(page, "Please choose a product");
+    await selectByText('select[name="supplier"]', "Manila Hardware Trading");
+    await selectByText('select[name="items[0].product"]', "Claw Hammer 16 oz");
+    const unitCost = await page.$eval('input[name="items[0].unitCost"]', (el) => el.value);
+    assert(unitCost === "185", `unit cost not pre-filled from cost price (got ${unitCost})`);
+    await fill(page, 'input[name="items[0].quantity"]', "12");
+    await waitForText(page, "Total ₱2,220.00");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await page.waitForFunction(() => /\/purchase-orders\/[a-f0-9]{24}$/.test(location.pathname), { timeout: 15000 });
+    poUrl = new URL(page.url()).pathname;
+    await waitForText(page, "Requested by");
+    poNumber = await page.$eval("h1", (el) => el.innerText.trim());
+    assert(/^PO-\d{4}-\d{4}$/.test(poNumber), `unexpected PO number ${poNumber}`);
+  });
+
+  await step("Admin approves the PO; the timeline records it", async () => {
+    await clickText(page, "Approve");
+    await clickText(page, "Approve", '[role="dialog"] button');
+    await waitForText(page, `${poNumber} approved`);
+    await waitForText(page, "Approved by");
+    await waitForText(page, "Mark as received");
+  });
+
+  await step("PO list status tabs filter by status", async () => {
+    await open("/purchase-orders");
+    await clickText(page, "Approved", '[role="tab"]');
+    await page.waitForFunction(() => location.search.includes("status=Approved"));
+    await waitForText(page, poNumber);
+    const rows = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => tr.innerText));
+    assert(
+      rows.every((text) => text.includes("Approved")),
+      "non-approved PO in the Approved tab"
+    );
+  });
+
+  await step("Dashboard shows purchase order counts", async () => {
+    await open("/");
+    await waitForText(page, "Purchase orders");
+    assert(await page.$('a[aria-label^="Approved purchase orders: "]'), "PO status tiles missing");
+  });
+
   // ---------------------------------------------------------------- Mobile
   await step("Mobile 375px: no horizontal scroll and hamburger drawer works", async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
@@ -415,6 +476,47 @@ const run = async () => {
     await fill(page, 'input[name="confirmPassword"]', "NewStaff123");
     await clickText(page, "Change password", 'button[type="submit"]');
     await waitForText(page, "Current password is incorrect");
+  });
+
+  await step("Staff cannot approve, but marks the approved PO received (stock IN)", async () => {
+    await open(poUrl);
+    await waitForText(page, "Mark as received");
+    assert(!(await page.evaluate(() => document.body.innerText.includes("Reject"))), "staff sees Reject");
+    await clickText(page, "Mark as received");
+    await clickText(page, "Mark as received", '[role="dialog"] button');
+    await waitForText(page, "added to stock");
+    await waitForText(page, "Received into stock by");
+  });
+
+  await step("Receiving added a Purchase movement linked to the PO", async () => {
+    await open("/products?search=Claw");
+    await waitForText(page, "Claw Hammer 16 oz");
+    await page.evaluate(() =>
+      [...document.querySelectorAll("table a")].find((a) => a.innerText.includes("Claw Hammer")).click()
+    );
+    await waitForText(page, "Movement history");
+    await waitForText(page, poNumber);
+    await waitForText(page, "46");
+  });
+
+  await step("Staff requests a PO and cancels it with a reason", async () => {
+    await open("/purchase-orders/new");
+    await selectByText('select[name="supplier"]', "Cebu Builders");
+    await selectByText('select[name="items[0].product"]', "Portland Cement");
+    await fill(page, 'input[name="items[0].quantity"]', "40");
+    await clickText(page, "Add item");
+    await selectByText('select[name="items[1].product"]', "Portland Cement");
+    await fill(page, 'input[name="items[1].quantity"]', "1");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "This product is already on the order");
+    await clickText(page, "Remove item 2");
+    await clickText(page, "Submit request", 'button[type="submit"]');
+    await waitForText(page, "Waiting for an admin to approve");
+    await clickText(page, "Cancel request");
+    await fill(page, '[role="dialog"] textarea[name="reason"]', "Ordered by phone instead");
+    await clickText(page, "Cancel request", '[role="dialog"] button[type="submit"]');
+    await waitForText(page, "Ordered by phone instead");
+    await waitForText(page, "Cancelled by");
   });
 
   await step("Staff opening an admin URL is redirected", async () => {

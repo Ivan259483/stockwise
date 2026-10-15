@@ -1,11 +1,11 @@
-import { AlertTriangle, ArrowRight, Boxes, PackageX, PlusCircle, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, ClipboardList, PackageX, PlusCircle, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getDashboardSummary } from "../api/dashboard";
 import MovementTrendChart from "../components/dashboard/MovementTrendChart";
 import ValueByCategoryChart from "../components/dashboard/ValueByCategoryChart";
 import StockMovementModal from "../components/forms/StockMovementModal";
-import { MovementTypeBadge, StockStatusBadge } from "../components/ui/Badge";
+import { MovementTypeBadge, PoStatusBadge, StockStatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
@@ -15,6 +15,7 @@ import { PageLoader } from "../components/ui/Spinner";
 import StatCard from "../components/ui/StatCard";
 import useAuth from "../hooks/useAuth";
 import useFetch from "../hooks/useFetch";
+import { PO_STATUSES } from "../utils/constants";
 import { formatDateTime, formatNumber, formatWholeCurrency } from "../utils/formatters";
 
 /**
@@ -26,7 +27,7 @@ import { formatDateTime, formatNumber, formatWholeCurrency } from "../utils/form
  * stale numbers after a change.
  */
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { data, loading, error, refetch } = useFetch(() => getDashboardSummary().then((body) => body.data));
   // The low-stock item being restocked; null keeps the modal closed.
   const [restockProduct, setRestockProduct] = useState(null);
@@ -103,6 +104,39 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Purchase orders: how many are in each step of the workflow; each tile opens the filtered list */}
+      <Card
+        className="mt-6"
+        title="Purchase orders"
+        description={
+          isAdmin && data.purchaseOrders.counts.Requested > 0
+            ? `${formatNumber(data.purchaseOrders.counts.Requested)} waiting for your approval`
+            : `${formatNumber(data.purchaseOrders.receivedLast30Days.count)} received in the last 30 days (${formatWholeCurrency(data.purchaseOrders.receivedLast30Days.value)})`
+        }
+        actions={
+          <Button to="/purchase-orders/new" size="sm" variant="secondary" icon={ClipboardList}>
+            New purchase order
+          </Button>
+        }
+      >
+        <ul className="grid grid-cols-2 divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 lg:divide-x">
+          {PO_STATUSES.map((status) => (
+            <li key={status}>
+              <Link
+                to={`/purchase-orders?status=${status}`}
+                className="flex flex-col gap-1.5 px-5 py-4 transition hover:bg-slate-50"
+                aria-label={`${status} purchase orders: ${data.purchaseOrders.counts[status]}`}
+              >
+                <span className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {formatNumber(data.purchaseOrders.counts[status])}
+                </span>
+                <PoStatusBadge status={status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
       {/* Charts: where the money is (value by category) and how stock moved this week */}
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card title="Stock value by category" description="Value of stock on hand at cost" bodyClassName="p-4">
@@ -155,6 +189,16 @@ export default function Dashboard() {
                   <span className="hidden sm:block">
                     <StockStatusBadge status={item.stockStatus} />
                   </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={ClipboardList}
+                    to={`/purchase-orders/new?product=${item._id}`}
+                    aria-label={`Order ${item.name}`}
+                    title="Create a purchase order"
+                  >
+                    <span className="hidden sm:inline">Order</span>
+                  </Button>
                   <Button size="sm" variant="secondary" icon={PlusCircle} onClick={() => setRestockProduct(item)}>
                     Restock
                   </Button>
