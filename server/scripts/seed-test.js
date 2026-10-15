@@ -14,7 +14,9 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import connectDB from "../config/db.js";
 import Category from "../models/Category.js";
+import Counter from "../models/Counter.js";
 import Product from "../models/Product.js";
+import PurchaseOrder from "../models/PurchaseOrder.js";
 import StockMovement from "../models/StockMovement.js";
 import Supplier from "../models/Supplier.js";
 import User from "../models/User.js";
@@ -170,7 +172,7 @@ const seed = async () => {
   }
   console.log(`Connected to test database "${mongoose.connection.name}". Resetting fixture data...`);
 
-  const models = [User, Category, Supplier, Product, StockMovement];
+  const models = [User, Category, Supplier, Product, StockMovement, PurchaseOrder, Counter];
   // Start each run with an empty test mail outbox.
   await rm(OUTBOX_FILE, { force: true });
   await Promise.all(models.map((model) => model.deleteMany({})));

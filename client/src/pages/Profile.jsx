@@ -83,7 +83,7 @@ export default function Profile() {
       <PageHeader title="My profile" description="Update your name, email and password." />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Account" bodyClassName="px-5 py-2">
+        <Card title="Account" bodyClassName="px-5 py-2" className="lg:self-start">
           <dl className="divide-y divide-slate-100">
             <Detail label="Role">
               <Badge tone={user.role === "admin" ? "primary" : "neutral"} className="capitalize">
