@@ -311,15 +311,17 @@ const coverParagraphs = () => {
       children: [new TextRun({ text, bold, italics, color, font: FONT, size: size * 2 })],
     });
   return [
-    line("INTEGRATIVE PROGRAMMING AND TECHNOLOGIES", { bold: true, before: 1200, color: "475569" }),
-    line("Final Project", { after: 1600, color: "475569" }),
+    ...META.courses.map((course, i) =>
+      line(course.name.toUpperCase(), { bold: true, before: i === 0 ? 1200 : 0, color: "475569" })
+    ),
+    line("Final Project", { after: 1400, color: "475569" }),
     line(META.title.toUpperCase(), { bold: true, size: HEADING_PT, color: ACCENT }),
     line(META.subtitle, { italics: true, after: 400 }),
     line(META.documentType, { bold: true, after: 1600 }),
     line("Group Members", { bold: true }),
     ...META.members.map((member) => line(member, { after: 240 })),
-    line(`Course: ${META.course}`),
-    line(`Section: ${META.section}`),
+    line("Subjects", { bold: true }),
+    ...META.courses.map((course) => line(`${course.name} (${course.code})`)),
     line(`Date: ${META.date}`, { after: 1200 }),
     line(`Live application: ${META.liveApp}`, { color: "475569" }),
     line(`Source code: ${META.repo}`, { color: "475569", after: 0 }),
@@ -493,7 +495,7 @@ const htmlBody = async () => {
             <figcaption><strong>${item.label}</strong> <em>${escapeHtml(item.caption)}</em></figcaption></figure>`
           )
         );
-        parts.push(`<div class="figure-row">${items.join("")}</div>`);
+        parts.push(`<div class="figure-row figures-${block.items.length}">${items.join("")}</div>`);
         if (block.text) parts.push(`<p class="figure-text">${inlineHtml(block.text)}</p>`);
         break;
       }
@@ -544,6 +546,9 @@ const buildHtml = async (pages) => `<!doctype html>
   .figure-text { margin-bottom: 14pt; }
   .figure-row { display: flex; justify-content: space-between; break-inside: avoid; }
   .figure-row figure { width: 32%; }
+  .figure-row.figures-2 figure { width: 49%; }
+  .figure-row.figures-4 figure { width: 24%; }
+  .figure-row img { max-width: 100%; }
   .table-block { margin: 8pt 0 10pt; }
   .table-caption { margin: 0 0 3pt; text-align: left; break-after: avoid; }
   table { width: 100%; border-collapse: collapse; }
@@ -554,15 +559,15 @@ const buildHtml = async (pages) => `<!doctype html>
 </style></head>
 <body>
   <section class="cover">
-    <p class="muted"><strong>INTEGRATIVE PROGRAMMING AND TECHNOLOGIES</strong></p>
+    ${META.courses.map((c) => `<p class="muted"><strong>${escapeHtml(c.name.toUpperCase())}</strong></p>`).join("")}
     <p class="muted">Final Project</p>
     <p class="title">${escapeHtml(META.title.toUpperCase())}</p>
     <p><em>${escapeHtml(META.subtitle)}</em></p>
     <p style="margin-top:0.25in"><strong>${META.documentType}</strong></p>
     <p style="margin-top:1.1in"><strong>Group Members</strong></p>
     ${META.members.map((m) => `<p>${escapeHtml(m)}</p>`).join("")}
-    <p style="margin-top:0.15in">Course: ${escapeHtml(META.course)}</p>
-    <p>Section: ${META.section}</p>
+    <p style="margin-top:0.15in"><strong>Subjects</strong></p>
+    ${META.courses.map((c) => `<p>${escapeHtml(c.name)} (${c.code})</p>`).join("")}
     <p>Date: ${META.date}</p>
     <p class="muted" style="margin-top:0.8in">Live application: ${META.liveApp}</p>
     <p class="muted">Source code: ${META.repo}</p>
