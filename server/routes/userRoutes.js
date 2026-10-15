@@ -1,16 +1,16 @@
 import { Router } from "express";
-import { deleteUser, getUsers, updateUser } from "../controllers/userController.js";
+import { createUser, deleteUser, getUsers, updateUser } from "../controllers/userController.js";
 import { authorize, protect } from "../middleware/auth.js";
 import validate from "../middleware/validate.js";
 import { idParamRules } from "../validators/common.js";
-import { updateUserRules } from "../validators/userValidators.js";
+import { createUserRules, updateUserRules } from "../validators/userValidators.js";
 
 const router = Router();
 
 // User management is admin-only.
 router.use(protect, authorize("admin"));
 
-router.get("/", getUsers);
+router.route("/").get(getUsers).post(validate(createUserRules), createUser);
 router.patch("/:id", validate(updateUserRules), updateUser);
 router.delete("/:id", validate(idParamRules), deleteUser);
 

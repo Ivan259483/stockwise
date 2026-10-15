@@ -10,12 +10,21 @@ export const getUsers = asyncHandler(async (_req, res) => {
 });
 
 /**
- * PATCH /api/users/:id: change role and/or active status (admin only).
+ * POST /api/users: an admin adds an account with a temporary password and
+ * chooses its role (public registration can only create staff).
+ */
+export const createUser = asyncHandler(async (req, res) => {
+  const user = await User.create(pick(req.body, ["name", "email", "password", "role"]));
+  res.status(201).json({ success: true, data: user, message: "User created" });
+});
+
+/**
+ * PATCH /api/users/:id: edit name, email, role and/or active status (admin only).
  * Admins cannot demote or deactivate themselves, which guarantees the
  * system is never left without an active admin by accident.
  */
 export const updateUser = asyncHandler(async (req, res) => {
-  const updates = pick(req.body, ["role", "isActive"]);
+  const updates = pick(req.body, ["name", "email", "role", "isActive"]);
   const isSelf = req.params.id === req.user.id;
 
   if (isSelf && ((updates.role && updates.role !== "admin") || updates.isActive === false)) {

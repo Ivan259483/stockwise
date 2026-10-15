@@ -1,19 +1,42 @@
 /**
  * End-to-end smoke test for a running StockWise API.
  *
- * Exercises authentication, CRUD, stock in/out and the main error paths, and
- * prints PASS/FAIL per check. It creates its own temporary category, supplier
- * and product and deletes them at the end (their stock movements remain, as
- * the audit log is append-only by design).
+ * Exercises authentication, account management, password recovery, CRUD,
+ * stock in/out and the main error paths, and prints PASS/FAIL per check. It
+ * creates its own temporary records (category, supplier, product, user).
  *
- * Usage:
- *   npm run smoke                                   # http://localhost:5050/api
- *   API_URL=https://your-api.vercel.app/api npm run smoke
+ * It only runs against the TEST API (server started with `npm run dev:test`,
+ * database "stockwise_test" seeded with `npm run seed:test`): it aborts if the
+ * API reports any database whose name does not end in "_test", so it can never
+ * touch the demo or live data. It reads password-reset codes from the test
+ * mail outbox (tmp/outbox.jsonl) that the API writes when NODE_ENV=test.
+ *
+ * Usage: npm run seed:test && npm run smoke      # http://localhost:5051/api
+ * (tools/run-tests.mjs does all of this, including starting the servers.)
  */
+import { readFile } from "node:fs/promises";
+import { OUTBOX_FILE } from "../services/mailer.js";
 
-const API_URL = (process.env.API_URL ?? process.argv[2] ?? "http://localhost:5050/api").replace(/\/$/, "");
-const ADMIN = { email: "admin@stockwise.com", password: "Admin123!" };
-const STAFF = { email: "staff@stockwise.com", password: "Staff123!" };
+const API_URL = (process.env.API_URL ?? process.argv[2] ?? "http://localhost:5051/api").replace(/\/$/, "");
+const ADMIN = { email: "admin@stockwise.test", password: "Admin123!" };
+const STAFF = { email: "staff@stockwise.test", password: "Staff123!" };
+const RECOVERY = { email: "recovery@stockwise.test", password: "Staff123!" };
+
+/** All messages the test API has "sent" to `email`, oldest first. */
+const readOutbox = async (email) => {
+  const text = await readFile(OUTBOX_FILE, "utf8").catch(() => "");
+  return text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((message) => message.to.includes(email));
+};
+
+/** The 6-digit code in the most recent reset email for `email`, or null. */
+const latestResetCode = async (email) => {
+  const messages = await readOutbox(email);
+  return messages.at(-1)?.text.match(/\b(\d{6})\b/)?.[1] ?? null;
+};
 
 const results = [];
 const suffix = Date.now().toString(36).toUpperCase();
@@ -67,7 +90,16 @@ const check = (name, response, expectStatus, assert = () => true) => {
 const run = async () => {
   console.log(`StockWise smoke test → ${API_URL}\n`);
 
-  check("GET /health returns ok", await request("GET", "/health"), 200, (b) => b.data.status === "ok");
+  const health = check("GET /health returns ok", await request("GET", "/health"), 200, (b) => b.data.status === "ok");
+  const databaseName = health?.data?.databaseName ?? "";
+  if (!databaseName.endsWith("_test")) {
+    console.error(
+      `\nAborted: the API is using database "${databaseName || "unknown (production?)"}". ` +
+        "The smoke test only runs against a *_test database (npm run dev:test)."
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   // --- Authentication ------------------------------------------------------
   const adminLogin = check("Admin login", await request("POST", "/auth/login", { body: ADMIN }), 200, (b) =>
@@ -75,7 +107,8 @@ const run = async () => {
   );
   const adminToken = adminLogin?.data?.token;
   const staffLogin = check("Staff login", await request("POST", "/auth/login", { body: STAFF }), 200);
-  const staffToken = staffLogin?.data?.token;
+  // Replaced after the password-change checks, which sign out the old token.
+  let staffToken = staffLogin?.data?.token;
 
   check(
     "Login with wrong password → 401",
@@ -96,6 +129,166 @@ const run = async () => {
   );
   check("No token → 401", await request("GET", "/products"), 401, (b) => b.success === false);
   check("Malformed token → 401", await request("GET", "/products", { token: "not.a.jwt" }), 401);
+
+  // --- Profile and password change ----------------------------------------
+  check(
+    "Staff updates own name (profile)",
+    await request("PATCH", "/auth/me", { token: staffToken, body: { name: "Staff User (edited)" } }),
+    200,
+    (b) => b.data.name === "Staff User (edited)" && b.data.role === "staff"
+  );
+  check(
+    "Profile email already used by another account → 409",
+    await request("PATCH", "/auth/me", { token: staffToken, body: { email: ADMIN.email } }),
+    409,
+    (b) => b.errors[0].field === "email"
+  );
+  check(
+    "Profile cannot change own role",
+    await request("PATCH", "/auth/me", { token: staffToken, body: { name: "Staff User", role: "admin" } }),
+    200,
+    (b) => b.data.role === "staff" && b.data.name === "Staff User"
+  );
+  check(
+    "Change password with wrong current password → 400",
+    await request("PATCH", "/auth/me/password", {
+      token: staffToken,
+      body: { currentPassword: "Wrong1234", newPassword: "NewStaff123" },
+    }),
+    400,
+    (b) => b.errors[0].field === "currentPassword"
+  );
+  const changed = check(
+    "Change password returns a new token",
+    await request("PATCH", "/auth/me/password", {
+      token: staffToken,
+      body: { currentPassword: STAFF.password, newPassword: "NewStaff123" },
+    }),
+    200,
+    (b) => Boolean(b.data.token)
+  );
+  check(
+    "Old token is rejected after a password change → 401",
+    await request("GET", "/auth/me", { token: staffToken }),
+    401
+  );
+  const restored = check(
+    "Change password back (new token works)",
+    await request("PATCH", "/auth/me/password", {
+      token: changed?.data?.token,
+      body: { currentPassword: "NewStaff123", newPassword: STAFF.password },
+    }),
+    200
+  );
+  staffToken = restored?.data?.token;
+
+  // --- Password recovery ---------------------------------------------------
+  check(
+    "Forgot password for an unknown email → same generic 200",
+    await request("POST", "/auth/forgot-password", { body: { email: "nobody@stockwise.test" } }),
+    200,
+    (b) => b.message.startsWith("If an account with that email exists")
+  );
+  check(
+    "Forgot password sends a 6-digit code",
+    await request("POST", "/auth/forgot-password", { body: { email: RECOVERY.email } }),
+    200,
+    () => true
+  );
+  const code = await latestResetCode(RECOVERY.email);
+  check("Reset email contains a 6-digit code", { status: code ? 200 : 0, body: {} }, 200);
+  const mailCount = (await readOutbox(RECOVERY.email)).length;
+  await request("POST", "/auth/forgot-password", { body: { email: RECOVERY.email } });
+  check(
+    "Second request within the cooldown sends no new code",
+    { status: (await readOutbox(RECOVERY.email)).length === mailCount ? 200 : 0, body: {} },
+    200
+  );
+  const wrongCode = code === "000000" ? "111111" : "000000";
+  check(
+    "Reset with a wrong code → 400 with attempts left",
+    await request("POST", "/auth/reset-password", {
+      body: { email: RECOVERY.email, code: wrongCode, password: "Recovered123" },
+    }),
+    400,
+    (b) => b.message.includes("attempts left")
+  );
+  check(
+    "Reset with a malformed code → 400",
+    await request("POST", "/auth/reset-password", {
+      body: { email: RECOVERY.email, code: "12ab", password: "Recovered123" },
+    }),
+    400,
+    (b) => b.errors[0].field === "code"
+  );
+  check(
+    "Reset with the emailed code",
+    await request("POST", "/auth/reset-password", { body: { email: RECOVERY.email, code, password: "Recovered123" } }),
+    200
+  );
+  check(
+    "The code cannot be used twice",
+    await request("POST", "/auth/reset-password", { body: { email: RECOVERY.email, code, password: "Again12345" } }),
+    400
+  );
+  check(
+    "Login with the new password",
+    await request("POST", "/auth/login", { body: { email: RECOVERY.email, password: "Recovered123" } }),
+    200
+  );
+  check("Old password no longer works → 401", await request("POST", "/auth/login", { body: RECOVERY }), 401);
+
+  // --- User management (admin) ---------------------------------------------
+  const newUserEmail = `new.user.${suffix.toLowerCase()}@stockwise.test`;
+  const newUser = check(
+    "Admin adds a user with a role",
+    await request("POST", "/users", {
+      token: adminToken,
+      body: { name: "New Staff", email: newUserEmail, password: "Temp1234", role: "staff" },
+    }),
+    201,
+    (b) => b.data.email === newUserEmail && b.data.role === "staff" && b.data.password === undefined
+  )?.data;
+  check(
+    "Admin adding a duplicate email → 409",
+    await request("POST", "/users", {
+      token: adminToken,
+      body: { name: "Dup", email: newUserEmail, password: "Temp1234", role: "staff" },
+    }),
+    409
+  );
+  check(
+    "Admin adding a user with a weak password → 400",
+    await request("POST", "/users", {
+      token: adminToken,
+      body: { name: "Weak", email: `weak.${suffix.toLowerCase()}@stockwise.test`, password: "short", role: "staff" },
+    }),
+    400,
+    (b) => b.errors.some((e) => e.field === "password")
+  );
+  check(
+    "Staff adding a user → 403",
+    await request("POST", "/users", {
+      token: staffToken,
+      body: { name: "X", email: `x.${suffix.toLowerCase()}@stockwise.test`, password: "Temp1234", role: "admin" },
+    }),
+    403
+  );
+  check(
+    "Admin edits a user's name, email and role",
+    await request("PATCH", `/users/${newUser?._id}`, {
+      token: adminToken,
+      body: { name: "New Admin", email: newUserEmail, role: "admin" },
+    }),
+    200,
+    (b) => b.data.name === "New Admin" && b.data.role === "admin"
+  );
+  check(
+    "New user can log in with the temporary password",
+    await request("POST", "/auth/login", { body: { email: newUserEmail, password: "Temp1234" } }),
+    200,
+    (b) => b.data.user.role === "admin"
+  );
 
   // --- Categories CRUD -----------------------------------------------------
   const category = check(
