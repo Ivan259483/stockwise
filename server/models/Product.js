@@ -67,6 +67,12 @@ const productSchema = new mongoose.Schema(
       default: 10,
       validate: { validator: Number.isInteger, message: "Reorder level must be a whole number" },
     },
+    /**
+     * When the admins were emailed that this product is low or out of stock.
+     * Cleared when it is restocked above its reorder level, so each product
+     * triggers at most one alert per "low" period.
+     */
+    lowStockAlertSentAt: { type: Date, default: null },
     image: {
       type: String,
       default: "",

@@ -9,6 +9,7 @@ import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
 import { ACTIVE_FILTER } from "../models/plugins/archivable.js";
 import ApiError from "../utils/ApiError.js";
+import { alertIfLow, resetAlertIfRestocked } from "./stockAlerts.js";
 
 /** Active products only: archived products cannot receive or lose stock. */
 const ACTIVE = ACTIVE_FILTER;
@@ -66,6 +67,7 @@ export const stockIn = async ({ productId, quantity, reason, note, userId, purch
   if (!product) throw await explainMiss(productId);
 
   const movement = await recordMovement({ product, type: "IN", quantity, reason, note, userId, purchaseOrder });
+  await resetAlertIfRestocked(product);
   return { product, movement };
 };
 
@@ -85,7 +87,8 @@ export const stockOut = async ({ productId, quantity, reason, note, userId }) =>
   if (!product) throw await explainMiss(productId);
 
   const movement = await recordMovement({ product, type: "OUT", quantity, reason, note, userId });
-  return { product, movement };
+  const alert = await alertIfLow(product);
+  return { product, movement, alert };
 };
 
 /**

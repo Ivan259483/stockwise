@@ -611,6 +611,20 @@ const run = async () => {
     await waitForText(page, "LED Bulb 9W Daylight now has");
   });
 
+  await step("A sale that leaves a product low emails the admins (once)", async () => {
+    await open("/movements");
+    await clickText(page, "Record movement");
+    await page.waitForSelector('[role="dialog"] select[name="productId"]');
+    await clickText(page, "Stock out", '[role="dialog"] button');
+    await selectByText('[role="dialog"] select[name="productId"]', "Convenience Outlet Duplex");
+    await fill(page, '[role="dialog"] input[name="quantity"]', "1");
+    await clickText(page, "Record stock out", '[role="dialog"] button');
+    await waitForText(page, "Convenience Outlet Duplex is low on stock");
+    const outbox = await readFile(OUTBOX_FILE, "utf8");
+    const alerts = outbox.split("\n").filter((l) => l.includes("Stock alert: Convenience Outlet Duplex"));
+    assert(alerts.length === 1, `expected 1 alert email, found ${alerts.length}`);
+  });
+
   await step("Staff stock out above available on an out-of-stock item is rejected", async () => {
     await open("/products?status=out_of_stock");
     await waitForText(page, "Adjustable Wrench");

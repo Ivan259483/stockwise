@@ -8,9 +8,13 @@ import { getPagination, paginated } from "../utils/helpers.js";
 import { MOVEMENT_TYPES } from "../utils/constants.js";
 
 /** Shapes the response returned by both stock endpoints. */
-const movementResponse = async ({ movement, product }) => {
+const movementResponse = async ({ movement, product, alert }) => {
   await movement.populate("performedBy", "name");
-  return { success: true, data: { movement, product }, message: `Stock ${movement.type.toLowerCase()} recorded` };
+  return {
+    success: true,
+    data: { movement, product, ...(alert?.sent ? { lowStockAlert: alert } : {}) },
+    message: `Stock ${movement.type.toLowerCase()} recorded`,
+  };
 };
 
 /** POST /api/stock/in (atomic `$inc`, see services/stockService.js). */

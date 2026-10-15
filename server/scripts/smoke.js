@@ -421,6 +421,13 @@ const run = async () => {
     201,
     (b) => b.data.movement.newQty === 3 && b.data.product.stockStatus === "low_stock"
   );
+  const alertsFor = async (name) =>
+    (await readOutbox(ADMIN.email)).filter((m) => m.subject.startsWith(`Stock alert: ${name}`)).length;
+  check(
+    "Dropping to the reorder level emails the admins a low-stock alert",
+    { status: (await alertsFor("Smoke Test Product")) === 1 ? 200 : 0, body: {} },
+    200
+  );
   check(
     "Stock OUT exceeding quantity → 409",
     await request("POST", "/stock/out", {
@@ -532,6 +539,30 @@ const run = async () => {
       b.data.movements[0].type === "IN" &&
       b.data.movements[0].reason === "Purchase" &&
       b.data.movements[0].poNumber === po?.poNumber
+  );
+  check(
+    "Restocking above the reorder level re-arms the low-stock alert",
+    await request("GET", `/products/${product?._id}`, { token: staffToken }),
+    200,
+    (b) => b.data.product.lowStockAlertSentAt === null
+  );
+  check(
+    "Dropping low again sends a new alert (once per low period)",
+    await request("POST", "/stock/out", {
+      token: staffToken,
+      body: { productId: product?._id, quantity: 21, reason: "Sale" },
+    }),
+    201,
+    async () => true
+  );
+  await request("POST", "/stock/out", {
+    token: staffToken,
+    body: { productId: product?._id, quantity: 1, reason: "Sale" },
+  });
+  check(
+    "Two alerts in total: none for the sale while it was already low",
+    { status: (await alertsFor("Smoke Test Product")) === 2 ? 200 : 0, body: {} },
+    200
   );
   check(
     "Receiving twice → 409 (no double stock)",
