@@ -1,96 +1,30 @@
 import mongoose from "mongoose";
-import Product from "../models/Product.js";
 import StockMovement from "../models/StockMovement.js";
+import * as stock from "../services/stockService.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { parseDateBoundary } from "../utils/dates.js";
 import { getPagination, paginated } from "../utils/helpers.js";
 import { MOVEMENT_TYPES } from "../utils/constants.js";
 
-/**
- * Writes the audit record for a quantity change that has already been applied.
- * If writing the record fails, the quantity change is rolled back so stock
- * levels never change without a matching history entry.
- *
- * @param {object} params
- * @param {import("mongoose").Document} params.product The product after the update.
- * @param {"IN"|"OUT"} params.type
- * @param {number} params.quantity
- * @param {string} params.reason
- * @param {string} [params.note]
- * @param {import("mongoose").Types.ObjectId} params.userId
- */
-const recordMovement = async ({ product, type, quantity, reason, note, userId }) => {
-  const delta = type === "IN" ? quantity : -quantity;
-  try {
-    return await StockMovement.create({
-      product: product._id,
-      productName: product.name,
-      sku: product.sku,
-      type,
-      quantity,
-      previousQty: product.quantity - delta,
-      newQty: product.quantity,
-      reason,
-      note: note ?? "",
-      performedBy: userId,
-    });
-  } catch (error) {
-    await Product.updateOne({ _id: product._id }, { $inc: { quantity: -delta } });
-    throw error;
-  }
-};
-
 /** Shapes the response returned by both stock endpoints. */
-const movementResponse = async (movement, product) => {
+const movementResponse = async ({ movement, product }) => {
   await movement.populate("performedBy", "name");
   return { success: true, data: { movement, product }, message: `Stock ${movement.type.toLowerCase()} recorded` };
 };
 
-/**
- * POST /api/stock/in
- * `$inc` is atomic, so concurrent stock-ins from two users never overwrite
- * each other (no read-modify-write race).
- */
+/** POST /api/stock/in (atomic `$inc`, see services/stockService.js). */
 export const stockIn = asyncHandler(async (req, res) => {
   const { productId, quantity, reason, note } = req.body;
-
-  const product = await Product.findByIdAndUpdate(
-    productId,
-    { $inc: { quantity } },
-    { returnDocument: "after", runValidators: true }
-  );
-  if (!product) throw ApiError.notFound("Product not found");
-
-  const movement = await recordMovement({ product, type: "IN", quantity, reason, note, userId: req.user._id });
-  res.status(201).json(await movementResponse(movement, product));
+  const result = await stock.stockIn({ productId, quantity, reason, note, userId: req.user._id });
+  res.status(201).json(await movementResponse(result));
 });
 
-/**
- * POST /api/stock/out
- * The `quantity: { $gte: qty }` condition and the decrement happen in one
- * atomic operation, so stock can never go negative even when two sales are
- * recorded at the same moment.
- */
+/** POST /api/stock/out (atomic guarded decrement; 409 when stock is insufficient). */
 export const stockOut = asyncHandler(async (req, res) => {
   const { productId, quantity, reason, note } = req.body;
-
-  const product = await Product.findOneAndUpdate(
-    { _id: productId, quantity: { $gte: quantity } },
-    { $inc: { quantity: -quantity } },
-    { returnDocument: "after" }
-  );
-
-  if (!product) {
-    // Distinguish "no such product" from "not enough stock".
-    const existing = await Product.findById(productId).select("quantity");
-    if (!existing) throw ApiError.notFound("Product not found");
-    const message = `Insufficient stock: only ${existing.quantity} available`;
-    throw ApiError.conflict(message, [{ field: "quantity", message }]);
-  }
-
-  const movement = await recordMovement({ product, type: "OUT", quantity, reason, note, userId: req.user._id });
-  res.status(201).json(await movementResponse(movement, product));
+  const result = await stock.stockOut({ productId, quantity, reason, note, userId: req.user._id });
+  res.status(201).json(await movementResponse(result));
 });
 
 /** GET /api/stock/movements?product=&type=&from=&to=&page=&limit= (newest first) */
